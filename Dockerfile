@@ -1,7 +1,7 @@
 # parameters
-ARG REPO_NAME="DuckieRace"
-ARG DESCRIPTION=""
-ARG MAINTAINER="duckie.town@web.de"
+ARG REPO_NAME="DuckieChallenge"
+ARG DESCRIPTION="Duckie Challenge SS2025 HKA RKIM"
+ARG MAINTAINER="ConnorMcQuackor"
 # pick an icon from: https://fontawesome.com/v4.7.0/icons/
 ARG ICON="cube"
 
