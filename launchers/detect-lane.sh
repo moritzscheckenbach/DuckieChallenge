@@ -6,7 +6,7 @@ source /environment.sh
 dt-launchfile-init
 
 # launch subscriber
-rosrun followlane detect_lane_node.py
+rosrun followlane self_detect_lane_node.py
 
 # wait for app to end
 dt-launchfile-join

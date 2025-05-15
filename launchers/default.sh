@@ -13,7 +13,12 @@ dt-launchfile-init
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
 # launching app
-dt-exec echo "This is an empty launch script. Update it to launch your application."
+#dt-exec python3 -m "my_package.my_script"
+
+dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" &
+dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_control_lane_node.py" &
+dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_detect_lane_node.py" 
+#dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" 
 
 
 # ----------------------------------------------------------------------------
