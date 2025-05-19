@@ -19,7 +19,6 @@ class DetectLaneNode(DTROS):
         self.pub_center = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
 
         self.counter = 0
-        # test 
         self.load_config("packages/followlane/config/detect_lane.yaml")
 
     def load_config(self, path):
@@ -75,6 +74,21 @@ class DetectLaneNode(DTROS):
         else:
             return width / 2
 
+    def find_closest_line(self, lines, image_center):
+        """
+        Find the line whose x-position is closest to the image center.
+        Returns a list containing only this line (or empty if lines is empty).
+        """
+        if not lines:
+            return []
+        # For each line, compute the average x position
+        def line_center(line):
+            x1, _, x2, _ = line[0]
+            return (x1 + x2) / 2
+        # Find the line with minimal distance to image_center
+        closest = min(lines, key=lambda line: abs(line_center(line) - image_center))
+        return [closest]
+
     def image_callback(self, msg):
         if self.counter % 2 != 0:
             self.counter += 1
@@ -96,8 +110,13 @@ class DetectLaneNode(DTROS):
         lines = cv2.HoughLinesP(masked_edges, 1, np.pi / 180, threshold=50, minLineLength=50, maxLineGap=150)
         left_lines, right_lines = [], []
 
+        image_center = width / 2
+
         if lines is not None:
             left_lines, right_lines = self.average_slope_intercept(lines)
+            # Behalte nur die Linie, die der Bildmitte am nächsten ist (für jede Seite)
+            left_lines = self.find_closest_line(left_lines, image_center)
+            right_lines = self.find_closest_line(right_lines, image_center)
             for line in left_lines:
                 for x1, y1, x2, y2 in line:
                     cv2.line(debug_img, (x1, y1), (x2, y2), (255, 0, 0), 2)  # blau = links
@@ -106,7 +125,6 @@ class DetectLaneNode(DTROS):
                     cv2.line(debug_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  # rot = rechts
 
         lane_center = self.compute_lane_center(left_lines, right_lines, width)
-        image_center = width / 2
         error = lane_center - image_center
 
         # Visualisierung der Spurmitte und Bildmitte
