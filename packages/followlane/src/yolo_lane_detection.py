@@ -67,10 +67,34 @@ class DetectLaneNode(DTROS):
         if mask is None:
             return None
 
+        # Make sure mask is properly shaped and not empty
+        if mask.size == 0 or len(mask.shape) < 2:
+            rospy.logwarn(f"Invalid mask shape: {mask.shape}")
+            return None
+
+        # Ensure mask is a proper numpy array with correct dimensionality
+        mask = mask.squeeze()  # Remove singleton dimensions if any
+
+        # Convert to binary mask if needed (in case it's a probability map)
+        if mask.dtype != np.uint8:
+            mask = (mask > 0.5).astype(np.uint8)
+
         # Resize mask to original image dimensions if needed
-        if mask.shape[:2] != original_size[:2]:
-            mask = cv2.resize(mask.astype(np.uint8), (original_size[1], original_size[0]), interpolation=cv2.INTER_NEAREST)
-        return mask
+        try:
+            if mask.shape[:2] != original_size[:2]:
+                # Make sure both dimensions are non-zero
+                if mask.shape[0] > 0 and mask.shape[1] > 0:
+                    # Convert to uint8 before resizing
+                    mask_uint8 = mask.astype(np.uint8)
+                    resized_mask = cv2.resize(mask_uint8, (original_size[1], original_size[0]), interpolation=cv2.INTER_NEAREST)
+                    return resized_mask
+                else:
+                    rospy.logwarn(f"Invalid mask dimensions for resizing: {mask.shape}")
+                    return None
+            return mask
+        except Exception as e:
+            rospy.logwarn(f"Error processing mask: {e}")
+            return None
 
     def extract_lane_center_from_mask(self, mask, height_roi=50):
         """Extract the lane center from a segmentation mask at a specific height."""
