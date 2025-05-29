@@ -24,7 +24,7 @@ class DetectLaneNode(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
         # Initialize YOLO model for lane segmentation
-        yolo_model_path = "packages/followlane/assets/lane_model.pt"  # Path to your lane segmentation model
+        yolo_model_path = "/home/moritz_s/Documents/RKIM_1/Duckiebots/DuckieChallenge/packages/followlane/model/yolo_v11_seg_20250528.pt"  # Path to your lane segmentation model
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
