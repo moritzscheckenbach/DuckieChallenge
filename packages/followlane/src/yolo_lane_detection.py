@@ -40,6 +40,8 @@ class DetectLaneNode(DTROS):
         # Add a publisher for visualization of segmentation results
         self._yolo_viz_topic = f"/{self._vehicle_name}/detect/lane/segmentation"
         self.pub_segmentation = rospy.Publisher(self._yolo_viz_topic, Image, queue_size=1)
+        self._lane_viz_topic = f"/{self._vehicle_name}/detect/lane/visualization"
+        self.pub_lane_viz = rospy.Publisher(self._lane_viz_topic, Image, queue_size=1)
 
         self.counter = 0
         self.bridge = CvBridge()
@@ -90,143 +92,98 @@ class DetectLaneNode(DTROS):
         else:
             self.counter += 1
 
-        # Convert compressed image to OpenCV format
         np_arr = np.frombuffer(image_msg.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
-        # Keep a copy for region of interest cropping
         img_orig = cv_image.copy()
-
-        # Apply YOLO model for lane segmentation if enabled
-        results = None
-        if self.yolo_enabled:
-            try:
-                results = self._model(cv_image)
-            except Exception as e:
-                rospy.logerr(f"Error running YOLO model: {e}")
-                self.yolo_enabled = False  # Disable YOLO for future iterations
-
-        # Process segmentation results to find lane centers
-        # We'll extract both traditional color-based detection as a fallback
-        # and use the YOLO segmentation results for better lane detection
         img_cropped = self.crop_img(img_orig)
 
-        # Color-based detection as a fallback
-        hsv = cv2.cvtColor(img_cropped, cv2.COLOR_BGR2HSV)
+        # YOLO Inferenz
+        if not self.yolo_enabled:
+            return
 
-        mask_yellow = cv2.inRange(
-            hsv,
-            (self.hue_yellow_l, self.saturation_yellow_l, self.lightness_yellow_l),
-            (self.hue_yellow_h, self.saturation_yellow_h, self.lightness_yellow_h),
-        )
-
-        mask_white = cv2.inRange(
-            hsv,
-            (self.hue_white_l, self.saturation_white_l, self.lightness_white_l),
-            (self.hue_white_h, self.saturation_white_h, self.lightness_white_h),
-        )
-
-        # Process YOLO segmentation results
         try:
-            # Get segmentation masks from YOLO results
-            # Assuming the model returns segmentation masks for lane markings
-            if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
-                # Extract masks for white and yellow lane classes (adjust class indices as needed)
-                # This depends on how your lane model was trained
-                white_lane_mask = None
-                yellow_lane_mask = None
-
-                # Extract white lane class (assuming class index 0)
-                white_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 0]
-                if white_indices and len(results[0].masks) > white_indices[0]:
-                    white_lane_mask = results[0].masks[white_indices[0]].data.cpu().numpy()
-                    white_lane_mask = self.process_segmentation_mask(white_lane_mask, cv_image.shape)
-
-                # Extract yellow lane class (assuming class index 1)
-                yellow_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 1]
-                if yellow_indices and len(results[0].masks) > yellow_indices[0]:
-                    yellow_lane_mask = results[0].masks[yellow_indices[0]].data.cpu().numpy()
-                    yellow_lane_mask = self.process_segmentation_mask(yellow_lane_mask, cv_image.shape)
-
-                # If YOLO detected lane markings, use them for better center calculation
-                if white_lane_mask is not None:
-                    center_white_from_yolo = self.extract_lane_center_from_mask(white_lane_mask)
-                    if center_white_from_yolo is not None:
-                        center_white = center_white_from_yolo
-                    else:
-                        # Fallback to traditional color detection
-                        ys_white, xs_white = np.where(mask_white != 0)
-                        center_white = np.mean(xs_white) if xs_white.size > 0 else 100
-                else:
-                    # Fallback to traditional color detection
-                    ys_white, xs_white = np.where(mask_white != 0)
-                    center_white = np.mean(xs_white) if xs_white.size > 0 else 100
-
-                if yellow_lane_mask is not None:
-                    center_yellow_from_yolo = self.extract_lane_center_from_mask(yellow_lane_mask)
-                    if center_yellow_from_yolo is not None:
-                        center_yellow = center_yellow_from_yolo
-                    else:
-                        # Fallback to traditional color detection
-                        ys_yellow, xs_yellow = np.where(mask_yellow != 0)
-                        center_yellow = np.mean(xs_yellow) if xs_yellow.size > 0 else 900
-                else:
-                    # Fallback to traditional color detection
-                    ys_yellow, xs_yellow = np.where(mask_yellow != 0)
-                    center_yellow = np.mean(xs_yellow) if xs_yellow.size > 0 else 900
-            else:
-                # Fallback to traditional color detection if no segmentation masks
-                ys_white, xs_white = np.where(mask_white != 0)
-                ys_yellow, xs_yellow = np.where(mask_yellow != 0)
-                center_white = np.mean(xs_white) if xs_white.size > 0 else 100
-                center_yellow = np.mean(xs_yellow) if xs_yellow.size > 0 else 900
+            results = self._model(cv_image)
         except Exception as e:
-            # Handle any errors in YOLO processing
-            rospy.logwarn(f"YOLO processing error: {e}. Falling back to color detection.")
-            ys_white, xs_white = np.where(mask_white != 0)
-            ys_yellow, xs_yellow = np.where(mask_yellow != 0)
-            center_white = np.mean(xs_white) if xs_white.size > 0 else 100
-            center_yellow = np.mean(xs_yellow) if xs_yellow.size > 0 else 900
+            rospy.logerr(f"YOLO inference error: {e}")
+            return
 
-        # Handle NaN values
-        if np.isnan(center_white):
-            center_white = 100
+        # Extrahiere YOLO-Masken
+        yellow_lane_mask = None
+        white_lane_mask = None
 
-        if np.isnan(center_yellow):
-            center_yellow = 900
+        if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
+            for i, cls in enumerate(results[0].boxes.cls):
+                mask = results[0].masks[i].data.cpu().numpy()
+                mask = self.process_segmentation_mask(mask, cv_image.shape)
+                if int(cls) == 1:  # Gelb
+                    yellow_lane_mask = mask
+                elif int(cls) == 0:  # Weiß
+                    white_lane_mask = mask
 
-        calculated_center = (center_white + center_yellow) / 2
+        if yellow_lane_mask is None or white_lane_mask is None:
+            rospy.logwarn("Not both yellow and white lane masks found.")
+            return
 
-        ###### image visualization ######
+        # Pixelkoordinaten
+        ys_yellow, xs_yellow = np.where(yellow_lane_mask > 0)
+        ys_white_all, xs_white_all = np.where(white_lane_mask > 0)
+
+        if xs_yellow.size == 0 or xs_white_all.size == 0:
+            rospy.logwarn("No yellow or white pixels found.")
+            return
+
+        # Weiß rechts der gelben Linie filtern
+        x_g_mean = np.mean(xs_yellow)
+        valid_indices = xs_white_all > x_g_mean
+        xs_white = xs_white_all[valid_indices]
+        ys_white = ys_white_all[valid_indices]
+
+        if xs_white.size == 0:
+            rospy.logwarn("No white pixels to the right of yellow line.")
+            return
+
+        # Fit: x = a*y + b
+        fit_yellow = np.polyfit(ys_yellow, xs_yellow, 1)
+        fit_white = np.polyfit(ys_white, xs_white, 1)
+
+        y_eval = 50  # Höhe in der Bildmitte
+        x_yellow = np.polyval(fit_yellow, y_eval)
+        x_white = np.polyval(fit_white, y_eval)
+        x_center = (x_yellow + x_white) / 2
+
+        ###### VISUALISIERUNG ######
         vis_img = img_cropped.copy()
 
-        # Draw lane centers on the visualization image
-        if not np.isnan(center_white):
-            cv2.circle(vis_img, (int(center_white), 50), 5, (255, 0, 0), -1)
-        if not np.isnan(center_yellow):
-            cv2.circle(vis_img, (int(center_yellow), 50), 5, (0, 255, 0), -1)
-        cv2.circle(vis_img, (int(calculated_center), 50), 5, (0, 0, 255), -1)
+        cv2.circle(vis_img, (int(x_yellow), y_eval), 5, (0, 255, 255), -1)  # Gelb
+        cv2.circle(vis_img, (int(x_white), y_eval), 5, (255, 255, 255), -1)  # Weiß
+        cv2.circle(vis_img, (int(x_center), y_eval), 5, (0, 0, 255), -1)  # Spurmittelpunkt
 
-        # Create a visualization image with segmentation overlay from YOLO
-        seg_vis_img = cv_image.copy()
-        if results is not None and hasattr(results[0], "plot"):
-            seg_vis_img = results[0].plot()  # Let YOLO plot its segmentation
+        # Plot von YOLO (optional)
+        seg_vis_img = results[0].plot() if hasattr(results[0], "plot") else cv_image
 
-        # Convert the OpenCV image to ROS Image and publish
+        # ROS Bild senden
         try:
+            # Publish segmentation image
             viz_msg = self.bridge.cv2_to_imgmsg(seg_vis_img, "bgr8")
             self.pub_segmentation.publish(viz_msg)
+
+            # Publish lane detection visualization
+            lane_viz_msg = self.bridge.cv2_to_imgmsg(vis_img, "bgr8")
+            self.pub_lane_viz.publish(lane_viz_msg)
         except Exception as e:
-            rospy.logwarn(f"Error converting visualization image: {e}")
+            rospy.logwarn(f"Error converting image: {e}")
 
-        # Show images for debugging
-        cv2.imshow("Lane Detection", vis_img)
-        cv2.imshow("YOLO Lane Segmentation", seg_vis_img)
-        cv2.waitKey(1)
+        # Conditional debug display - only try to show if display is available
+        try:
+            cv2.imshow("Lane Detection", vis_img)
+            cv2.imshow("YOLO Lane Segmentation", seg_vis_img)
+            cv2.waitKey(1)
+        except:
+            pass  # Silently ignore if display isn't available
 
-        # Create array message with white center, yellow center, and calculated center
+        # ROS Nachricht mit Zentren
         msg_centers = Float64MultiArray()
-        msg_centers.data = [float(center_white), float(center_yellow), float(calculated_center)]
+        msg_centers.data = [float(x_white), float(x_yellow), float(x_center)]
         self.pub_lane.publish(msg_centers)
 
     def load_conf(self, path):
