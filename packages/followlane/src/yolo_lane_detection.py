@@ -29,6 +29,8 @@ class DetectLaneNode(DTROS):
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
             self.yolo_enabled = True
+            rospy.logwarn(f"YOLO model loaded from {yolo_model_path}.")
+
         else:
             rospy.logwarn(f"YOLO model not found at {yolo_model_path}. Running in fallback mode.")
             self._model = None
@@ -128,6 +130,7 @@ class DetectLaneNode(DTROS):
         # Apply YOLO model for lane segmentation
         try:
             results = self._model(cv_image)
+            rospy.logwarn(f"Test")
 
             # Process segmentation masks from YOLO results
             if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:

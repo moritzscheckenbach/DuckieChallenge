@@ -13,13 +13,13 @@ dt-launchfile-init
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
 # launching app
-#dt-exec python3 -m "my_package.my_script"
+# dt-exec python3 -m "my_package.my_script"
 
 
-rosrun followlane camera_reader_node.py &
-rosrun followlane control_lane_node.py &
-rosrun followlane yolo_lane_detection.py &
-
+# rosrun followlane camera_reader_node.py &
+# rosrun followlane control_lane_node.py &
+# rosrun followlane yolo_lane_detection.py &
+rosrun followlane lane_detection_node.py &
 
 
 
