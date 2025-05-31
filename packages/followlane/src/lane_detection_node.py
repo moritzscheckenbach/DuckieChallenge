@@ -192,6 +192,10 @@ class DetectLaneNode(DTROS):
                 center_yellow = default_center_yellow
                 lane_center = (center_white + center_yellow) / 2
 
+            lane_center_msg = Float64()
+            lane_center_msg.data = float(lane_center)
+            self.pub_lane.publish(lane_center_msg)
+
             # Visualize the results
             self.visualize_lane(img_orig, lane_center, white_lane_mask, yellow_lane_mask, center_white, center_yellow)
 
