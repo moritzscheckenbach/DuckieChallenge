@@ -49,9 +49,9 @@ class ControlLaneNode(DTROS):
         """
 
         # PID Parameters
-        Kp = 11.5  # Proportional gain
+        Kp = 7.65  # Proportional gain
         Ki = 0.00  # Integral gain
-        Kd = 0.70  # Derivative gain
+        Kd = 1.20  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):

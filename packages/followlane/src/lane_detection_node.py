@@ -59,7 +59,7 @@ class DetectLaneNode(DTROS):
     # def process_segmentation_mask(self, mask, original_size):
     #     """Process a segmentation mask to fit the original image size."""
 
-    def extract_lane_center_from_mask(self, mask, height_roi=310):
+    def extract_lane_center_from_mask(self, mask, height_roi=280):
         if mask is None or mask.size == 0:
             rospy.logwarn("Empty mask provided for lane center extraction.")
             return None
@@ -319,18 +319,18 @@ class DetectLaneNode(DTROS):
 
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), h - (480 - 310)), 10, (0, 255, 0), -1)
+            cv2.circle(center_vis, (int(lane_center), h - (480 - 280)), 10, (0, 255, 0), -1)
             cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-            cv2.line(center_vis, (int(lane_center), h - (480 - 310)), (int(w / 2), h - (480 - 310)), (0, 0, 255), 2)
+            cv2.line(center_vis, (int(lane_center), h - (480 - 280)), (int(w / 2), h - (480 - 280)), (0, 0, 255), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), h - (480 - 310)), 8, (255, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_white), h - (480 - 280)), 8, (255, 255, 255), -1)
             cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), h - (480 - 310)), 8, (0, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_yellow), h - (480 - 280)), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
         vis_image[:, w : 2 * w] = center_vis
