@@ -59,7 +59,7 @@ class DetectLaneNode(DTROS):
     # def process_segmentation_mask(self, mask, original_size):
     #     """Process a segmentation mask to fit the original image size."""
 
-    def extract_lane_center_from_mask(self, mask, height_roi=325):
+    def extract_lane_center_from_mask(self, mask, height_roi=310):
         if mask is None or mask.size == 0:
             rospy.logwarn("Empty mask provided for lane center extraction.")
             return None
@@ -124,7 +124,7 @@ class DetectLaneNode(DTROS):
 
             default_center_white = 600  # Default value for fallback
             default_center_yellow = 100  # Default value for fallback
-            default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2 - 50
+            default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2 - 100
 
             white_lane_mask = None
             yellow_lane_mask = None
@@ -198,8 +198,10 @@ class DetectLaneNode(DTROS):
 
                 # Check if we have at least one detection of class 1 (white line) and class 2 (yellow line)
                 if ROIW == True and ROIY == True:
-
-                    lane_center = (center_white + center_yellow) / 2
+                    if center_white > center_yellow:
+                        lane_center = (center_white + center_yellow) / 2
+                    else:
+                        lane_center = center_yellow + default_lane_center_from_outer_line
 
                 elif ROIW == True and ROIY == False:
 
@@ -317,17 +319,18 @@ class DetectLaneNode(DTROS):
 
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), h - (480 - 325)), 10, (0, 255, 0), -1)
+            cv2.circle(center_vis, (int(lane_center), h - (480 - 310)), 10, (0, 255, 0), -1)
             cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
+            cv2.line(center_vis, (int(lane_center), h - (480 - 310)), (int(w / 2), h - (480 - 310)), (0, 0, 255), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), h - (480 - 325)), 8, (255, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_white), h - (480 - 310)), 8, (255, 255, 255), -1)
             cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), h - (480 - 325)), 8, (0, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_yellow), h - (480 - 310)), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
         vis_image[:, w : 2 * w] = center_vis
