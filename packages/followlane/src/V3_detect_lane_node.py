@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 
 import os
+
 import cv2
 import numpy as np
 import rospy
 import yaml
-from std_msgs.msg import Float64
-from sensor_msgs.msg import CompressedImage
 from duckietown.dtros import DTROS, NodeType
+from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import Float64
+
 
 class DetectLaneNode(DTROS):
     def __init__(self, node_name):
         super(DetectLaneNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
-        self._vehicle_name = os.environ['VEHICLE_NAME']
+        self._vehicle_name = os.environ["VEHICLE_NAME"]
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image = rospy.Subscriber(self._camera_topic, CompressedImage, self.image_callback, queue_size=1)
         self.pub_center = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
@@ -36,12 +38,17 @@ class DetectLaneNode(DTROS):
 
     def apply_roi_mask(self, image):
         mask = np.zeros_like(image)
-        pts = np.array([[
-            (self.conf["lane_image"]["top_left_x"], self.conf["lane_image"]["top_left_y"]),
-            (self.conf["lane_image"]["top_right_x"], self.conf["lane_image"]["top_right_y"]),
-            (self.conf["lane_image"]["bottom_left_x"], self.conf["lane_image"]["bottom_left_y"]),
-            (self.conf["lane_image"]["bottom_right_x"], self.conf["lane_image"]["bottom_right_y"]),
-        ]], dtype=np.int32)
+        pts = np.array(
+            [
+                [
+                    (self.conf["lane_image"]["top_left_x"], self.conf["lane_image"]["top_left_y"]),
+                    (self.conf["lane_image"]["top_right_x"], self.conf["lane_image"]["top_right_y"]),
+                    (self.conf["lane_image"]["bottom_left_x"], self.conf["lane_image"]["bottom_left_y"]),
+                    (self.conf["lane_image"]["bottom_right_x"], self.conf["lane_image"]["bottom_right_y"]),
+                ]
+            ],
+            dtype=np.int32,
+        )
         cv2.fillPoly(mask, pts, 255)
         return cv2.bitwise_and(image, mask)
 
@@ -74,7 +81,6 @@ class DetectLaneNode(DTROS):
             return [[[x1, y1, x2, y2]]]
 
         return average_line(left_lines), average_line(right_lines)
-
 
     def compute_lane_center(self, left_lines, right_lines, width):
         def avg_x(lines):
@@ -139,7 +145,8 @@ class DetectLaneNode(DTROS):
         cv2.imshow("Lane Detection (Hough+ROI)", debug_resized)
         cv2.waitKey(1)
 
-if __name__ == '__main__':
-    node = DetectLaneNode(node_name='detect_lane_node')
+
+if __name__ == "__main__":
+    node = DetectLaneNode(node_name="detect_lane_node")
     rospy.spin()
     cv2.destroyAllWindows()

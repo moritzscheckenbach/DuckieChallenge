@@ -1,22 +1,24 @@
 #!/usr/bin/env python3
 
-import rospy
-from std_msgs.msg import Float64, Int32
-from duckietown_msgs.msg import Twist2DStamped
 import os
+
+import rospy
 from duckietown.dtros import DTROS, NodeType
+from duckietown_msgs.msg import Twist2DStamped
+from std_msgs.msg import Float64, Int32
 from switch_control_node import ControlType
+
 
 class ControlLaneNode(DTROS):
     def __init__(self, node_name):
         super(ControlLaneNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
         self.enable = False
-        self._vehicle_name = os.environ['VEHICLE_NAME']
+        self._vehicle_name = os.environ["VEHICLE_NAME"]
         twist_topic = f"/{self._vehicle_name}/car_cmd_switch_node/cmd"
         self.pub_cmd_vel = rospy.Publisher(twist_topic, Twist2DStamped, queue_size=1)
 
-        self.sub_lane = rospy.Subscriber(f'/{self._vehicle_name}/detect/lane', Float64, self.cbFollowLane, queue_size=1)
+        self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cbFollowLane, queue_size=1)
         self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl, queue_size=1)
 
         # PID Parameter
@@ -32,7 +34,7 @@ class ControlLaneNode(DTROS):
         rospy.on_shutdown(self.fnShutDown)
 
     def cbControl(self, msg):
-        self.enable = (msg.data == ControlType.Lane.value)
+        self.enable = msg.data == ControlType.Lane.value
 
     def cbFollowLane(self, desired_center):
         if not self.enable:
@@ -61,6 +63,7 @@ class ControlLaneNode(DTROS):
         twist = Twist2DStamped(v=0.0, omega=0.0)
         self.pub_cmd_vel.publish(twist)
 
-if __name__ == '__main__':
-    node = ControlLaneNode(node_name='control_lane_node')
+
+if __name__ == "__main__":
+    node = ControlLaneNode(node_name="control_lane_node")
     rospy.spin()

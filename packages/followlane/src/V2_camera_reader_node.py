@@ -37,7 +37,6 @@ class CameraReaderNode(DTROS):
         self.sub_lane_center = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.lane_center_callback)
         self.sub_debug_image = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane/debug/image/compressed", CompressedImage, self.debug_image_callback)
 
-
     def lane_center_callback(self, msg):
         # Store the latest lane center value
         self.lane_center = msg.data
@@ -132,14 +131,12 @@ class CameraReaderNode(DTROS):
             name = f"{self.selected.get()}_{val}"
             self.conf[self.selected.get()][val] = self.sliders[name].get()
 
-
     def debug_image_callback(self, msg):
         image = self._bridge.compressed_imgmsg_to_cv2(msg)
         image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)))
         if hasattr(self, "lane_viz_panel"):
             self.lane_viz_panel.configure(image=image)
             self.lane_viz_panel.image = image
-
 
     def print_conf(self):
         text = yaml.safe_dump(self.conf)

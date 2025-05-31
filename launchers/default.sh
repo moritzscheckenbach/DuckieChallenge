@@ -13,12 +13,28 @@ dt-launchfile-init
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
 # launching app
-#dt-exec python3 -m "my_package.my_script"
+# dt-exec python3 -m "my_package.my_script"
 
-dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" &
-dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_control_lane_node.py" &
-dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_detect_lane_node.py" 
+
+# rosrun followlane camera_reader_node.py &
+# rosrun followlane control_lane_node.py &
+# rosrun followlane yolo_lane_detection.py &
+rosrun followlane lane_detection_node.py &
+rosrun followlane PID_control_lane_node.py &
+rosrun followlane switch_control_node.py &
+
+
+
+
+
+
+#dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" &
+#dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/control_lane_node.py" &
+#dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_detect_lane_node.py" 
 #dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" 
+#dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/yolo_lane_detection.py"
+
+
 
 
 # ----------------------------------------------------------------------------
