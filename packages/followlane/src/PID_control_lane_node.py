@@ -49,9 +49,9 @@ class ControlLaneNode(DTROS):
         """
 
         # PID Parameters
-        Kp = 0.5  # Proportional gain
-        Ki = 0.0001  # Integral gain
-        Kd = 0.1  # Derivative gain
+        Kp = 0.005  # Proportional gain
+        Ki = 0.00001  # Integral gain
+        Kd = 0.001  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
@@ -59,7 +59,7 @@ class ControlLaneNode(DTROS):
             self.integral = 0
 
         # Calculate current error
-        current_error = (center - 320) / 100
+        current_error = center - 320
 
         # Calculate integral term with anti-windup
         self.integral += current_error
@@ -84,12 +84,12 @@ class ControlLaneNode(DTROS):
             pid_output = -8.0
 
         # Adjust velocity based on curve sharpness (slow down in curves)
-        base_speed = 0.3
+        base_speed = 0.28
         curve_factor = abs(pid_output) / 8.0  # Normalized curve sharpness
-        v = base_speed * (1.0 - 0.5 * curve_factor)  # Reduce speed in curves
+        v = base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
 
-        twist = Twist2DStamped(v=v, omega=pid_output)
-        print(f"moving {v} with omega {pid_output} at error {current_error}")
+        twist = Twist2DStamped(v=v, omega=pid_output * -2.5)
+        rospy.logwarn(f"moving {v} with omega {pid_output*-2.5} at error {current_error}")
         self.pub_cmd_vel.publish(twist)
 
     def fnShutDown(self):

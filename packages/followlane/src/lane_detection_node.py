@@ -31,6 +31,9 @@ class DetectLaneNode(DTROS):
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
             self.yolo_enabled = True
+            if self._model is not None:
+                class_names = self._model.names  # Holt alle Klassennamen
+                rospy.loginfo(f"YOLO Model Classes: {class_names}")
 
         else:
             rospy.logwarn(f"YOLO model not found at {yolo_model_path}. Running in fallback mode.")
@@ -121,28 +124,29 @@ class DetectLaneNode(DTROS):
 
             default_center_white = 600  # Default value for fallback
             default_center_yellow = 100  # Default value for fallback
-            default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2
+            default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2 - 50
 
             white_lane_mask = None
             yellow_lane_mask = None
+            red_stop_mask = None
+
+            all_white_masks = []
+            all_yellow_masks = []
+            all_red_masks = []
 
             center_white = default_center_white
             center_yellow = default_center_yellow
-
-            rospy.logwarn(f"Yolo init")
 
             # Behavior selection based on detected classes
             if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
                 # Get all detected classes
                 detected_classes = results[0].boxes.cls.cpu().numpy().astype(int)
-                rospy.logwarn(f"1")
                 rospy.logwarn(f"Detected classes: {detected_classes}")
 
                 ROIW = False
                 ROIY = False
 
                 if 1 in detected_classes:
-
                     # Extract white lane class
                     white_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 1]
                     raw_white_lane_mask = results[0].masks[white_indices[0]].data.cpu().numpy()
@@ -153,8 +157,14 @@ class DetectLaneNode(DTROS):
                     else:
                         ROIW = True
 
-                if 2 in detected_classes:
+                    # Für die Visualisierung: Sammeln aller weißen Masken
+                    for idx in white_indices:
+                        raw_mask = results[0].masks[idx].data.cpu().numpy()
+                        mask = self.process_segmentation_mask(raw_mask, cv_image.shape)
+                        if mask is not None:
+                            all_white_masks.append(mask)
 
+                if 2 in detected_classes:
                     # Extract yellow lane class
                     yellow_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 2]
                     raw_yellow_lane_mask = results[0].masks[yellow_indices[0]].data.cpu().numpy()
@@ -165,7 +175,28 @@ class DetectLaneNode(DTROS):
                     else:
                         ROIY = True
 
-                # Check if we have at least one detection of class 0 (white line) and class 1 (yellow line)
+                    # Für die Visualisierung: Sammeln aller gelben Masken
+                    for idx in yellow_indices:
+                        raw_mask = results[0].masks[idx].data.cpu().numpy()
+                        mask = self.process_segmentation_mask(raw_mask, cv_image.shape)
+                        if mask is not None:
+                            all_yellow_masks.append(mask)
+
+                if 0 in detected_classes:
+                    # Extract red stop class
+                    red_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 0]
+                    if red_indices:
+                        raw_red_stop_mask = results[0].masks[red_indices[0]].data.cpu().numpy()
+                        red_stop_mask = self.process_segmentation_mask(raw_red_stop_mask, cv_image.shape)
+
+                    # Für die Visualisierung: Sammeln aller roten Masken
+                    for idx in red_indices:
+                        raw_mask = results[0].masks[idx].data.cpu().numpy()
+                        mask = self.process_segmentation_mask(raw_mask, cv_image.shape)
+                        if mask is not None:
+                            all_red_masks.append(mask)
+
+                # Check if we have at least one detection of class 1 (white line) and class 2 (yellow line)
                 if ROIW == True and ROIY == True:
 
                     lane_center = (center_white + center_yellow) / 2
@@ -179,14 +210,12 @@ class DetectLaneNode(DTROS):
                     lane_center = center_yellow + default_lane_center_from_outer_line
 
                 elif ROIW == False and ROIY == False:
-                    rospy.logwarn(f"5")
                     rospy.logwarn("No lane masks detected by YOLO. Using default values.")
                     center_white = default_center_white
                     center_yellow = default_center_yellow
                     lane_center = (center_white + center_yellow) / 2
 
             else:
-                rospy.logwarn(f"6")
                 rospy.logwarn("No lane masks detected by YOLO. Using default values.")
                 center_white = default_center_white
                 center_yellow = default_center_yellow
@@ -197,12 +226,20 @@ class DetectLaneNode(DTROS):
             self.pub_lane.publish(lane_center_msg)
 
             # Visualize the results
-            self.visualize_lane(img_orig, lane_center, white_lane_mask, yellow_lane_mask, center_white, center_yellow)
+            self.visualize_lane(
+                img_orig,
+                lane_center,
+                all_white_masks if all_white_masks else white_lane_mask,
+                all_yellow_masks if all_yellow_masks else yellow_lane_mask,
+                all_red_masks if all_red_masks else red_stop_mask,
+                center_white,
+                center_yellow,
+            )
 
         except Exception as e:
             rospy.logwarn(f"YOLO processing error: {e}. Using default values.")
 
-    def visualize_lane(self, img_orig, lane_center, white_lane_mask=None, yellow_lane_mask=None, center_white=None, center_yellow=None):
+    def visualize_lane(self, img_orig, lane_center, white_masks=None, yellow_masks=None, red_masks=None, center_white=None, center_yellow=None):
         """
         Create a visualization with three panels:
         1. Original image
@@ -211,54 +248,94 @@ class DetectLaneNode(DTROS):
         """
         h, w = img_orig.shape[:2]
 
-        # Create a blank canvas for three images side by side
-        full_width = w * 3
+        full_width = w * 2
         vis_image = np.zeros((h, full_width, 3), dtype=np.uint8)
 
-        # Panel 1: Original image
-        vis_image[:, 0:w] = img_orig
-
-        # Panel 2: Original with segmentation overlays
+        # Panel 1: Original with segmentation overlays
         overlay = img_orig.copy()
-        if white_lane_mask is not None and white_lane_mask.shape[:2] == img_orig.shape[:2]:
-            # Add white lane overlay in light blue
-            white_overlay = np.zeros_like(img_orig)
-            white_overlay[white_lane_mask > 0] = [255, 200, 0]  # Light blue color
-            overlay = cv2.addWeighted(overlay, 0.7, white_overlay, 0.3, 0)
 
-        if yellow_lane_mask is not None and yellow_lane_mask.shape[:2] == img_orig.shape[:2]:
-            # Add yellow lane overlay in green
-            yellow_overlay = np.zeros_like(img_orig)
-            yellow_overlay[yellow_lane_mask > 0] = [0, 255, 0]  # Green color
-            overlay = cv2.addWeighted(overlay, 0.7, yellow_overlay, 0.3, 0)
+        # if white_lane_mask is not None and white_lane_mask.shape[:2] == img_orig.shape[:2]:
+        #     # Add white lane overlay in light blue
+        #     white_overlay = np.zeros_like(img_orig)
+        #     white_overlay[white_lane_mask > 0] = [255, 255, 255]
+        #     overlay = cv2.addWeighted(overlay, 0.4, white_overlay, 0.6, 0)
 
-        vis_image[:, w : 2 * w] = overlay
+        # if yellow_lane_mask is not None and yellow_lane_mask.shape[:2] == img_orig.shape[:2]:
+        #     # Add yellow lane overlay in green
+        #     yellow_overlay = np.zeros_like(img_orig)
+        #     yellow_overlay[yellow_lane_mask > 0] = [0, 255, 255]
+        #     overlay = cv2.addWeighted(overlay, 0.4, yellow_overlay, 0.6, 0)
+
+        # if red_stop_mask is not None and red_stop_mask.shape[:2] == img_orig.shape[:2]:
+        #     # Add red lane overlay in red
+        #     red_overlay = np.zeros_like(img_orig)
+        #     red_overlay[red_stop_mask > 0] = [0, 0, 255]
+        #     overlay = cv2.addWeighted(overlay, 0.4, red_overlay, 0.6, 0)
+
+        # Erstelle eine kombinierte Maske für alle Segmentierungen
+        combined_mask = np.zeros_like(img_orig)
+
+        # Verarbeite weiße Masken - können Liste oder einzelne Maske sein
+        if isinstance(white_masks, list):
+            for mask in white_masks:
+                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                    combined_mask[mask > 0] = [255, 255, 255]  # Weiße Fahrspurmarkierung
+        elif white_masks is not None and white_masks.shape[:2] == img_orig.shape[:2]:
+            combined_mask[white_masks > 0] = [255, 255, 255]  # Einzelne weiße Maske
+
+        # Verarbeite gelbe Masken - können Liste oder einzelne Maske sein
+        if isinstance(yellow_masks, list):
+            for mask in yellow_masks:
+                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                    # Gelb nur hinzufügen, wo noch keine andere Maske existiert
+                    yellow_area = (mask > 0) & (combined_mask == 0).all(axis=2)
+                    combined_mask[yellow_area] = [0, 255, 255]
+        elif yellow_masks is not None and yellow_masks.shape[:2] == img_orig.shape[:2]:
+            yellow_area = (yellow_masks > 0) & (combined_mask == 0).all(axis=2)
+            combined_mask[yellow_area] = [0, 255, 255]  # Gelbe Fahrspurmarkierung
+
+        # Verarbeite rote Masken - können Liste oder einzelne Maske sein
+        if isinstance(red_masks, list):
+            for mask in red_masks:
+                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                    # Rot nur hinzufügen, wo noch keine andere Maske existiert
+                    red_area = (mask > 0) & (combined_mask == 0).all(axis=2)
+                    combined_mask[red_area] = [0, 0, 255]
+        elif red_masks is not None and red_masks.shape[:2] == img_orig.shape[:2]:
+            red_area = (red_masks > 0) & (combined_mask == 0).all(axis=2)
+            combined_mask[red_area] = [0, 0, 255]  # Rote Stoppmarkierung
+
+        # Original zu 40%, Maske zu 60%
+        overlay = cv2.addWeighted(overlay, 0.4, combined_mask, 0.6, 0)
+        vis_image[:, 0:w] = overlay
 
         # Panel 3: Original with center points
         center_vis = img_orig.copy()
 
+        # Draw image center
+        cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
+
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), h - 50), 10, (0, 0, 255), -1)  # Red circle
-            cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 0, 255), 2)
+            cv2.circle(center_vis, (int(lane_center), h - (480 - 325)), 10, (0, 255, 0), -1)
+            cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), h - 50), 8, (255, 200, 0), -1)  # Light blue circle
-            cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 200, 0), 2)
+            cv2.circle(center_vis, (int(center_white), h - (480 - 325)), 8, (255, 255, 255), -1)
+            cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), h - 50), 8, (0, 255, 0), -1)  # Green circle
-            cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 0), 2)
+            cv2.circle(center_vis, (int(center_yellow), h - (480 - 325)), 8, (0, 255, 255), -1)
+            cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
-        vis_image[:, 2 * w : 3 * w] = center_vis
+        vis_image[:, w : 2 * w] = center_vis
 
         # Add labels
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(vis_image, "Original", (10, 30), font, 1, (255, 255, 255), 2)
-        cv2.putText(vis_image, "Segmentation", (w + 10, 30), font, 1, (255, 255, 255), 2)
-        cv2.putText(vis_image, "Lane Centers", (2 * w + 10, 30), font, 1, (255, 255, 255), 2)
+        cv2.putText(vis_image, "Segmentation", (10, 30), font, 1, (255, 255, 255), 2)
+        cv2.putText(vis_image, "Lane Centers", (w + 10, 30), font, 1, (255, 255, 255), 2)
 
         # Display the visualization
         cv2.imshow("Lane Detection Visualization", vis_image)
