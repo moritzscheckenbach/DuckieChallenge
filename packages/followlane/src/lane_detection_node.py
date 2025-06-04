@@ -20,6 +20,8 @@ class DetectLaneNode(DTROS):
         super(DetectLaneNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
+        self.image_height = int(480)  # Default image height before cropping
+        self.roi_height = 100  # Height of the ROI for lane center extraction
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
@@ -51,6 +53,7 @@ class DetectLaneNode(DTROS):
         img = img.copy()
         h, w = img.shape[:2]
         crop_height = int(h * 0.375)  # Crop 37.5% from the top
+        self.image_height = crop_height
         img = img[crop_height:, :]
         return img
 
@@ -60,7 +63,7 @@ class DetectLaneNode(DTROS):
     # def process_segmentation_mask(self, mask, original_size):
     #     """Process a segmentation mask to fit the original image size."""
 
-    def extract_lane_center_from_mask(self, mask, height_roi=100):
+    def extract_lane_center_from_mask(self, mask, height_roi):
         if mask is None or mask.size == 0:
             rospy.logwarn("Empty mask provided for lane center extraction.")
             return None
@@ -117,9 +120,6 @@ class DetectLaneNode(DTROS):
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         cv_image = self.crop_img(cv_image)
 
-        # Keep a copy for region of interest cropping
-        # img_orig = cv_image.copy()
-
         # Apply YOLO model for lane segmentation
         try:
             results = self._model(cv_image)
@@ -153,7 +153,7 @@ class DetectLaneNode(DTROS):
                     white_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 1]
                     raw_white_lane_mask = results[0].masks[white_indices[0]].data.cpu().numpy()
                     white_lane_mask = self.process_segmentation_mask(raw_white_lane_mask, cv_image.shape)
-                    center_white = self.extract_lane_center_from_mask(white_lane_mask)
+                    center_white = self.extract_lane_center_from_mask(white_lane_mask, self.roi_height)
                     if center_white is None:
                         ROIW = False
                     else:
@@ -171,7 +171,7 @@ class DetectLaneNode(DTROS):
                     yellow_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 2]
                     raw_yellow_lane_mask = results[0].masks[yellow_indices[0]].data.cpu().numpy()
                     yellow_lane_mask = self.process_segmentation_mask(raw_yellow_lane_mask, cv_image.shape)
-                    center_yellow = self.extract_lane_center_from_mask(yellow_lane_mask)
+                    center_yellow = self.extract_lane_center_from_mask(yellow_lane_mask, self.roi_height)
                     if center_yellow is None:
                         ROIY = False
                     else:
@@ -265,51 +265,51 @@ class DetectLaneNode(DTROS):
         except Exception as e:
             rospy.logwarn(f"YOLO processing error: {e}. Using default values.")
 
-    def visualize_lane(self, img_orig, lane_center, white_masks=None, yellow_masks=None, red_masks=None, center_white=None, center_yellow=None):
+    def visualize_lane(self, img, lane_center, white_masks=None, yellow_masks=None, red_masks=None, center_white=None, center_yellow=None):
         """
         Create a visualization with three panels:
         1. Original image
         2. Original image with segmentation overlays
         3. Original image with center points
         """
-        h, w = img_orig.shape[:2]
+        h, w = img.shape[:2]
 
         full_width = w * 2
         vis_image = np.zeros((h, full_width, 3), dtype=np.uint8)
 
         # Panel 1: Original with segmentation overlays
-        overlay = img_orig.copy()
+        overlay = img.copy()
 
         # Erstelle eine kombinierte Maske für alle Segmentierungen
-        combined_mask = np.zeros_like(img_orig)
+        combined_mask = np.zeros_like(img)
 
         # Verarbeite weiße Masken - können Liste oder einzelne Maske sein
         if isinstance(white_masks, list):
             for mask in white_masks:
-                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                if mask is not None and mask.shape[:2] == img.shape[:2]:
                     combined_mask[mask > 0] = [255, 255, 255]  # Weiße Fahrspurmarkierung
-        elif white_masks is not None and white_masks.shape[:2] == img_orig.shape[:2]:
+        elif white_masks is not None and white_masks.shape[:2] == img.shape[:2]:
             combined_mask[white_masks > 0] = [255, 255, 255]  # Einzelne weiße Maske
 
         # Verarbeite gelbe Masken - können Liste oder einzelne Maske sein
         if isinstance(yellow_masks, list):
             for mask in yellow_masks:
-                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                if mask is not None and mask.shape[:2] == img.shape[:2]:
                     # Gelb nur hinzufügen, wo noch keine andere Maske existiert
                     yellow_area = (mask > 0) & (combined_mask == 0).all(axis=2)
                     combined_mask[yellow_area] = [0, 255, 255]
-        elif yellow_masks is not None and yellow_masks.shape[:2] == img_orig.shape[:2]:
+        elif yellow_masks is not None and yellow_masks.shape[:2] == img.shape[:2]:
             yellow_area = (yellow_masks > 0) & (combined_mask == 0).all(axis=2)
             combined_mask[yellow_area] = [0, 255, 255]  # Gelbe Fahrspurmarkierung
 
         # Verarbeite rote Masken - können Liste oder einzelne Maske sein
         if isinstance(red_masks, list):
             for mask in red_masks:
-                if mask is not None and mask.shape[:2] == img_orig.shape[:2]:
+                if mask is not None and mask.shape[:2] == img.shape[:2]:
                     # Rot nur hinzufügen, wo noch keine andere Maske existiert
                     red_area = (mask > 0) & (combined_mask == 0).all(axis=2)
                     combined_mask[red_area] = [0, 0, 255]
-        elif red_masks is not None and red_masks.shape[:2] == img_orig.shape[:2]:
+        elif red_masks is not None and red_masks.shape[:2] == img.shape[:2]:
             red_area = (red_masks > 0) & (combined_mask == 0).all(axis=2)
             combined_mask[red_area] = [0, 0, 255]  # Rote Stoppmarkierung
 
@@ -331,25 +331,25 @@ class DetectLaneNode(DTROS):
         vis_image[:, 0:w] = overlay
 
         # Panel 2: Original with center points
-        center_vis = img_orig.copy()
+        center_vis = img.copy()
 
         # Draw image center
         cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
 
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), h - (480 - 100)), 10, (0, 255, 0), -1)
+            cv2.circle(center_vis, (int(lane_center), h - (self.image_height - self.roi_height)), 10, (0, 255, 0), -1)
             cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-            cv2.line(center_vis, (int(lane_center), h - (480 - 100)), (int(w / 2), h - (480 - 100)), (0, 0, 255), 2)
+            cv2.line(center_vis, (int(lane_center), h - (self.image_height - self.roi_height)), (int(w / 2), h - (self.image_height - self.roi_height)), (0, 0, 255), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), h - (480 - 100)), 8, (255, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_white), h - (self.image_height - self.roi_height)), 8, (255, 255, 255), -1)
             cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), h - (480 - 100)), 8, (0, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_yellow), h - (self.image_height - self.roi_height)), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
         vis_image[:, w : 2 * w] = center_vis
