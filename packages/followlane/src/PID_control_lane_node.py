@@ -50,7 +50,7 @@ class ControlLaneNode(DTROS):
 
         # PID Parameters
         Kp = 7.65  # Proportional gain
-        Ki = 0.00  # Integral gain
+        Ki = 2.00  # Integral gain
         Kd = 1.20  # Derivative gain
 
         # Initialize PID variables if not already set
@@ -63,10 +63,10 @@ class ControlLaneNode(DTROS):
 
         # Calculate integral term with anti-windup
         self.integral += current_error
-        if self.integral > 100:  # Limit integral windup
-            self.integral = 100
-        elif self.integral < -100:
-            self.integral = -100
+        if self.integral > 800:  # Limit integral windup
+            self.integral = 800
+        elif self.integral < -800:
+            self.integral = -800
 
         # Calculate derivative term
         derivative = current_error - self.prev_error
