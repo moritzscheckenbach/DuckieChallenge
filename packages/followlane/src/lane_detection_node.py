@@ -118,7 +118,7 @@ class DetectLaneNode(DTROS):
         cv_image = self.crop_img(cv_image)
 
         # Keep a copy for region of interest cropping
-        img_orig = cv_image.copy()
+        # img_orig = cv_image.copy()
 
         # Apply YOLO model for lane segmentation
         try:
@@ -253,7 +253,7 @@ class DetectLaneNode(DTROS):
 
             # Visualize the results
             self.visualize_lane(
-                img_orig,
+                cv_image,
                 lane_center,
                 all_white_masks if all_white_masks else white_lane_mask,
                 all_yellow_masks if all_yellow_masks else yellow_lane_mask,
