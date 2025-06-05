@@ -20,8 +20,21 @@ class DetectLaneNode(DTROS):
         super(DetectLaneNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
+
         self.image_height = 480  # Default image height before cropping
-        self.roi_height = 100  # Height of the ROI for lane center extraction
+
+        # Load configuration parameters
+        self.config = self._load_config()
+
+        self.Xth_frame = self.config["processing"]["use_every_Xth_frame"]  # Process every Xth frame
+        self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
+        self.roi_height = self.config["processing"]["roi_height"]  # Height of the ROI for lane center extraction
+        self.default_center_white = self.config["defaults"]["center_white"]  # Default value for fallback
+        self.default_center_yellow = self.config["defaults"]["center_yellow"]  # Default value for fallback
+
+        self.red_stop_roi_window_height = self.config["red_stop"]["window_height"]
+        self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
+        self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
@@ -49,10 +62,25 @@ class DetectLaneNode(DTROS):
 
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.cbFindLane, queue_size=1)
 
+    def _load_config(self):
+        """Load configuration from YAML file with fallback to default values."""
+        config_path = "packages/lane_detection/config/lane_detection_params.yaml"
+
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    config = yaml.safe_load(f)
+                    rospy.loginfo(f"Loaded configuration from {config_path}")
+                    return config
+            else:
+                rospy.logerr(f"Error loading config file: {e}.")
+        except Exception as e:
+            rospy.logerr(f"Error loading config file: {e}.")
+
     def crop_img(self, img):
         img = img.copy()
         h, w = img.shape[:2]
-        crop_height = int(h * 0.375)  # Crop 37.5% from the top
+        crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
         img = img[crop_height:, :]
         self.image_height = img.shape[0]
         rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
@@ -111,7 +139,7 @@ class DetectLaneNode(DTROS):
             return None
 
     def cbFindLane(self, image_msg):
-        if self.counter % 5 != 0:
+        if self.counter % self.Xth_frame != 0:
             self.counter += 1
             return
         else:
@@ -126,9 +154,7 @@ class DetectLaneNode(DTROS):
         try:
             results = self._model(cv_image)
 
-            default_center_white = 600  # Default value for fallback
-            default_center_yellow = 40  # Default value for fallback
-            default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2 - 100
+            default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 100
 
             white_lane_mask = None
             yellow_lane_mask = None
@@ -138,8 +164,8 @@ class DetectLaneNode(DTROS):
             all_yellow_masks = []
             all_red_masks = []
 
-            center_white = default_center_white
-            center_yellow = default_center_yellow
+            center_white = self.default_center_white
+            center_yellow = self.default_center_yellow
 
             # Behavior selection based on detected classes
             if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
@@ -200,13 +226,12 @@ class DetectLaneNode(DTROS):
                         if mask is not None:
                             all_red_masks.append(mask)
 
-                    red_stop_roi_window_height = 100
-                    red_stop_roi_window_width = 400
-                    red_stop_roi_window_y_start = cv_image.shape[0] - 100 - red_stop_roi_window_height
-                    red_stop_roi_window_x_start = (cv_image.shape[1] - red_stop_roi_window_width) // 2
+                    red_stop_roi_window_y_start = cv_image.shape[0] - self.red_stop_roi_window_bottom_offset - self.red_stop_roi_window_height
+                    red_stop_roi_window_x_start = (cv_image.shape[1] - self.red_stop_roi_window_width) // 2
 
                     window_mask = mask[
-                        red_stop_roi_window_y_start : red_stop_roi_window_y_start + red_stop_roi_window_height, red_stop_roi_window_x_start : red_stop_roi_window_x_start + red_stop_roi_window_width
+                        red_stop_roi_window_y_start : red_stop_roi_window_y_start + self.red_stop_roi_window_height,
+                        red_stop_roi_window_x_start : red_stop_roi_window_x_start + self.red_stop_roi_window_width,
                     ]
 
                     if window_mask.size > 0:
@@ -239,14 +264,14 @@ class DetectLaneNode(DTROS):
 
                 elif ROIW == False and ROIY == False:
                     rospy.logwarn("No lane masks detected by YOLO. Using default values.")
-                    center_white = default_center_white
-                    center_yellow = default_center_yellow
+                    center_white = self.default_center_white
+                    center_yellow = self.default_center_yellow
                     lane_center = (center_white + center_yellow) / 2
 
             else:
                 rospy.logwarn("No lane masks detected by YOLO. Using default values.")
-                center_white = default_center_white
-                center_yellow = default_center_yellow
+                center_white = self.default_center_white
+                center_yellow = self.default_center_yellow
                 lane_center = (center_white + center_yellow) / 2
 
             lane_center_msg = Float64()
@@ -318,14 +343,12 @@ class DetectLaneNode(DTROS):
         # Original zu 40%, Maske zu 60%
         overlay = cv2.addWeighted(overlay, 0.4, combined_mask, 0.6, 0)
 
-        red_stop_roi_window_height = 100
-        red_stop_roi_window_width = 400
-        red_stop_roi_window_y_start = img.shape[0] - 100 - red_stop_roi_window_height
-        red_stop_roi_window_x_start = (img.shape[1] - red_stop_roi_window_width) // 2
+        red_stop_roi_window_y_start = img.shape[0] - self.red_stop_roi_window_bottom_offset - self.red_stop_roi_window_height
+        red_stop_roi_window_x_start = (img.shape[1] - self.red_stop_roi_window_width) // 2
         cv2.rectangle(
             overlay,
             (red_stop_roi_window_x_start, red_stop_roi_window_y_start),
-            (red_stop_roi_window_x_start + red_stop_roi_window_width, red_stop_roi_window_y_start + red_stop_roi_window_height),
+            (red_stop_roi_window_x_start + self.red_stop_roi_window_width, red_stop_roi_window_y_start + self.red_stop_roi_window_height),
             (255, 255, 255),
             2,
         )
