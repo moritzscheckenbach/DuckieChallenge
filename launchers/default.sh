@@ -18,7 +18,7 @@ dt-launchfile-init
 
 rosrun lane_detection lane_detection_node.py &
 rosrun duckie_control PID_control_lane_node.py &
-rosrun duckie_control switch_control_node.py &
+# rosrun duckie_control switch_control_node.py &
 
 
 

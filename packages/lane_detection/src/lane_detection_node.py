@@ -29,7 +29,7 @@ class DetectLaneNode(DTROS):
         self.pub_red_stop = rospy.Publisher(f"/{self._vehicle_name}/detect/red_stop", Bool, queue_size=1)
 
         # Initialize YOLO model for lane segmentation
-        yolo_model_path = "packages/followlane/src/model/yolo_v11_lane_seg_20250528.pt"  # Path to your lane segmentation model
+        yolo_model_path = "packages/lane_detection/src/model/yolo_v11_lane_seg_20250528.pt"  # Path to your lane segmentation model
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
@@ -55,6 +55,7 @@ class DetectLaneNode(DTROS):
         crop_height = int(h * 0.375)  # Crop 37.5% from the top
         img = img[crop_height:, :]
         self.image_height = img.shape[0]
+        rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
 
         return img
 
@@ -126,7 +127,7 @@ class DetectLaneNode(DTROS):
             results = self._model(cv_image)
 
             default_center_white = 600  # Default value for fallback
-            default_center_yellow = 100  # Default value for fallback
+            default_center_yellow = 40  # Default value for fallback
             default_lane_center_from_outer_line = (default_center_white - default_center_yellow) / 2 - 100
 
             white_lane_mask = None
@@ -334,14 +335,11 @@ class DetectLaneNode(DTROS):
         # Panel 2: Original with center points
         center_vis = img.copy()
 
+        # Horizontale Linie bei ROI-Höhe
+        cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
+
         # Draw image center
         cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
-
-        # Draw lane center
-        if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
-            cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-            cv2.line(center_vis, (int(lane_center), (self.image_height - self.roi_height)), (int(w / 2), h - (self.image_height - self.roi_height)), (0, 0, 255), 2)
 
         # Draw white lane center if available
         if center_white is not None:
@@ -353,8 +351,11 @@ class DetectLaneNode(DTROS):
             cv2.circle(center_vis, (int(center_yellow), self.roi_height), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
-        # Horizontale Linie bei ROI-Höhe
-        cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
+        # Draw lane center
+        if lane_center is not None:
+            cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
+            cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
+            cv2.line(center_vis, (int(lane_center), self.roi_height), (int(w / 2), self.roi_height), (0, 0, 255), 2)
 
         vis_image[:, w : 2 * w] = center_vis
 
