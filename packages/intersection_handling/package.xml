@@ -1,5 +1,5 @@
 <package>
-  <name>followlane</name>
+  <name>intersection_handling</name>
   <version>0.0.1</version>
   <description>
   My first Catkin package in Duckietown.

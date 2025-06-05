@@ -1,5 +1,5 @@
 <package>
-  <name>redstop</name>
+  <name>duckie_control</name>
   <version>0.0.1</version>
   <description>
   My first Catkin package in Duckietown.

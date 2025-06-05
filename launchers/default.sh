@@ -16,12 +16,9 @@ dt-launchfile-init
 # dt-exec python3 -m "my_package.my_script"
 
 
-# rosrun followlane camera_reader_node.py &
-# rosrun followlane control_lane_node.py &
-# rosrun followlane yolo_lane_detection.py &
-rosrun followlane lane_detection_node.py &
-rosrun followlane PID_control_lane_node.py &
-rosrun followlane switch_control_node.py &
+rosrun lane_detection lane_detection_node.py &
+rosrun duckie_control PID_control_lane_node.py &
+rosrun duckie_control switch_control_node.py &
 
 
 

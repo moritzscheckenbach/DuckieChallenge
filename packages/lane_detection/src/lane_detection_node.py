@@ -20,7 +20,7 @@ class DetectLaneNode(DTROS):
         super(DetectLaneNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
-        self.image_height = int(480)  # Default image height before cropping
+        self.image_height = 480  # Default image height before cropping
         self.roi_height = 100  # Height of the ROI for lane center extraction
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
@@ -53,8 +53,9 @@ class DetectLaneNode(DTROS):
         img = img.copy()
         h, w = img.shape[:2]
         crop_height = int(h * 0.375)  # Crop 37.5% from the top
-        self.image_height = crop_height
         img = img[crop_height:, :]
+        self.image_height = img.shape[0]
+
         return img
 
         # NOTE: If needed place bird's eye view transformation here
@@ -318,8 +319,8 @@ class DetectLaneNode(DTROS):
 
         red_stop_roi_window_height = 100
         red_stop_roi_window_width = 400
-        red_stop_roi_window_y_start = vis_image.shape[0] - 100 - red_stop_roi_window_height
-        red_stop_roi_window_x_start = (vis_image.shape[1] - red_stop_roi_window_width) // 2
+        red_stop_roi_window_y_start = img.shape[0] - 100 - red_stop_roi_window_height
+        red_stop_roi_window_x_start = (img.shape[1] - red_stop_roi_window_width) // 2
         cv2.rectangle(
             overlay,
             (red_stop_roi_window_x_start, red_stop_roi_window_y_start),
@@ -338,19 +339,22 @@ class DetectLaneNode(DTROS):
 
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), h - (self.image_height - self.roi_height)), 10, (0, 255, 0), -1)
+            cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
             cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-            cv2.line(center_vis, (int(lane_center), h - (self.image_height - self.roi_height)), (int(w / 2), h - (self.image_height - self.roi_height)), (0, 0, 255), 2)
+            cv2.line(center_vis, (int(lane_center), (self.image_height - self.roi_height)), (int(w / 2), h - (self.image_height - self.roi_height)), (0, 0, 255), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), h - (self.image_height - self.roi_height)), 8, (255, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_white), self.roi_height), 8, (255, 255, 255), -1)
             cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), h - (self.image_height - self.roi_height)), 8, (0, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_yellow), self.roi_height), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
+
+        # Horizontale Linie bei ROI-Höhe
+        cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
 
         vis_image[:, w : 2 * w] = center_vis
 
