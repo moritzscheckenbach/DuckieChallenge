@@ -6,7 +6,7 @@ import cv2
 import rospy
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool
 
 
@@ -20,7 +20,7 @@ class ImageCaptureNode(DTROS):
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
         # Subscriber für Bilder
-        self.image_subscription = rospy.Subscriber(f"/{self._vehicle_name}/camera_node/image/raw", Image, self.image_callback, queue_size=1)
+        self.image_subscription = rospy.Subscriber(f"/{self._vehicle_name}/camera_node/image/compressed", Image, self.image_callback, queue_size=1)
 
         # Subscriber für den Trigger
         self.trigger_subscription = rospy.Subscriber(f"/{self._vehicle_name}/capture_trigger", Bool, self.trigger_callback, queue_size=1)
@@ -29,7 +29,7 @@ class ImageCaptureNode(DTROS):
         self.image_counter = 0
 
         # Erstelle den Speicherordner, falls er nicht existiert
-        self.save_dir = os.path.join(os.environ.get("DT_REPO_PATH", "/code"), "captured_images")
+        self.save_dir = os.path.join(os.environ.get("DT_REPO_PATH", "/code"), "packages", "image_capture", "images")
         if not os.path.exists(self.save_dir):
             os.makedirs(self.save_dir)
 
@@ -48,7 +48,7 @@ class ImageCaptureNode(DTROS):
         self.log(f"Bild {self.image_counter + 1} empfangen, wird gespeichert...")
 
         try:
-            cv_image = self.bridge.imgmsg_to_cv2(self.image_msg, desired_encoding="bgr8")
+            cv_image = self.bridge.compressed_imgmsg_to_cv2(self.image_msg)
             save_path = os.path.join(self.save_dir, f"captured_image_{self.image_counter + 1:03}.jpg")
             save_complete = cv2.imwrite(save_path, cv_image)
 
