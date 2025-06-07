@@ -1,41 +1,38 @@
-import rclpy
-from rclpy.node import Node
+#!/usr/bin/env python3
+
+import os
+
+import rospy
+from duckietown.dtros import DTROS, NodeType
 from std_msgs.msg import Bool
 
 
-class CameraTriggerNode(Node):
+class CameraTriggerNode(DTROS):
+    def __init__(self, node_name):
+        super(CameraTriggerNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
-    def __init__(self):
-        super().__init__('camera_trigger_node')
-        self.publisher_ = self.create_publisher(Bool, '/capture_trigger', 10)
-        self.run()
+        self._vehicle_name = os.environ["VEHICLE_NAME"]
+        self.publisher = rospy.Publisher(f"/{self._vehicle_name}/capture_trigger", Bool, queue_size=10)
 
-    def get_key(self):
-        key = input("Enter [p] to take a picture: ")
-        return key
+        self.log("Camera Trigger Node gestartet! Drücke 'p', um ein Bild aufzunehmen.")
 
     def run(self):
         try:
-            while rclpy.ok():
-                key = self.get_key()
-                if key == 'p':
+            while not rospy.is_shutdown():
+                key = input("Drücke [p] für ein Foto (oder [q] zum Beenden): ")
+                if key.lower() == "p":
                     msg = Bool()
                     msg.data = True
-                    self.publisher_.publish(msg)
-                    print("Bildaufnahme ausgelöst")
+                    self.publisher.publish(msg)
+                    self.log("Bildaufnahme ausgelöst")
+                elif key.lower() == "q":
+                    self.log("Node wird beendet")
+                    rospy.signal_shutdown("User beendete die Node")
+                    break
         except KeyboardInterrupt:
-            print("Terminal wiederhergestellt.")
-            self.get_logger().info("Node wurde beendet")
-            self.destroy_node()
+            self.log("Terminal wiederhergestellt.")
 
 
-def main(args=None):
-    rclpy.init(args=args)
-
-    camera_trigger_node = CameraTriggerNode()
-    rclpy.spin(camera_trigger_node)
-    rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    node = CameraTriggerNode(node_name="camera_trigger_node")
+    node.run()
