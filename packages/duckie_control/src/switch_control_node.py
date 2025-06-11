@@ -40,6 +40,8 @@ class SwitchControlNode(DTROS):
         self.pub_control = rospy.Publisher(f"/{self._vehicle_name}/switch/control", Int32, queue_size=1)
         self.pub_control_mode = rospy.Publisher(f"/{self._vehicle_name}/control_mode", String, queue_size=1)
 
+        rospy.loginfo(f"{self._vehicle_name}: SwitchControlNode initialized with control mode: {self._control_mode}")
+
     def cbLaneDetected(self, msg):
         if self._control_mode == ControlType.Lane:
             print("Test")
