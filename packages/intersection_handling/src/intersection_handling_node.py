@@ -9,7 +9,7 @@ import rospy
 from duckie_control.src.switch_control_node import ControlType
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
-from std_msgs.msg import Float64, Int32
+from std_msgs.msg import Bool, Float64, Int32, String
 
 
 class IntersectionState(Enum):
