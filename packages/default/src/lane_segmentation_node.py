@@ -14,10 +14,10 @@ from std_msgs.msg import Bool, Float64
 from ultralytics import YOLO
 
 
-class DetectLaneNode(DTROS):
+class SegmentLaneNode(DTROS):
     def __init__(self, node_name):
         # initialize the DTROS parent class
-        super(DetectLaneNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
+        super(SegmentLaneNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
@@ -28,21 +28,11 @@ class DetectLaneNode(DTROS):
 
         self.Xth_frame = self.config["processing"]["use_every_Xth_frame"]  # Process every Xth frame
         self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
-        self.roi_height = self.config["processing"]["roi_height"]  # Height of the ROI for lane center extraction
-        self.default_center_white = self.config["defaults"]["center_white"]  # Default value for fallback
-        self.default_center_yellow = self.config["defaults"]["center_yellow"]  # Default value for fallback
-
-        self.red_stop_roi_window_height = self.config["red_stop"]["window_height"]
-        self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
-        self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
-        self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
-        self.pub_red_stop = rospy.Publisher(f"/{self._vehicle_name}/detect/red_stop", Bool, queue_size=1)
-
         # Initialize YOLO model for lane segmentation
-        yolo_model_path = "packages/lane_detection/src/model/yolo_v11_lane_seg_20250528.pt"  # Path to your lane segmentation model
+        yolo_model_path = "packages/default/src/model/yolo_v11_lane_seg_20250528.pt"  # Path to your lane segmentation model
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
@@ -60,11 +50,11 @@ class DetectLaneNode(DTROS):
         self.counter = 0
         self.bridge = CvBridge()
 
-        self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.cbFindLane, queue_size=1)
+        self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.cbSegmentLane, queue_size=1)
 
     def _load_config(self):
         """Load configuration from YAML file with fallback to default values."""
-        config_path = "packages/lane_detection/config/lane_detection_params.yaml"
+        config_path = "packages/default/config/lane_segmentation_params.yaml"
 
         try:
             if os.path.exists(config_path):
@@ -138,7 +128,7 @@ class DetectLaneNode(DTROS):
             rospy.logwarn(f"Error processing mask: {e}")
             return None
 
-    def cbFindLane(self, image_msg):
+    def cbSegmentLane(self, image_msg):
         if self.counter % self.Xth_frame != 0:
             self.counter += 1
             return
@@ -394,5 +384,5 @@ class DetectLaneNode(DTROS):
 
 if __name__ == "__main__":
 
-    node = DetectLaneNode(node_name="detect_lane_node")
+    node = SegmentLaneNode(node_name="detect_lane_node")
     rospy.spin()
