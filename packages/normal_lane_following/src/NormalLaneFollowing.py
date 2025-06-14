@@ -9,19 +9,18 @@ import rospy
 import yaml
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
+from MultiMaskGroups.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool, Float64
 from ultralytics import YOLO
-from MultiMaskGroups.msg import MultiMaskGroups
+
 
 class NormalLaneFollowing(DTROS):
     def __init__(self, node_name):
         # initialize the DTROS parent class
         super(NormalLaneFollowing, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
-        
 
         self.cv_image = None  # Placeholder for the current image
-
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
@@ -29,7 +28,6 @@ class NormalLaneFollowing(DTROS):
 
         # Load configuration parameters
         self.config = self._load_config()
-
 
         self.Xth_frame = self.config["processing"]["use_every_Xth_frame"]  # Process every Xth frame
         self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
@@ -41,26 +39,17 @@ class NormalLaneFollowing(DTROS):
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
-
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
-
 
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
 
-
-        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks",MultiMaskGroups,self.callback, queue_size=1) 
+        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
         # Image processing nessecities
         self.counter = 0
         self.bridge = CvBridge()
 
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
-
-
-
-
-
-
 
     def _load_config(self):
         """Load configuration from YAML file with fallback to default values."""
@@ -77,8 +66,7 @@ class NormalLaneFollowing(DTROS):
         except Exception as e:
             rospy.logerr(f"Error loading config file: {e}.")
 
-
-    def LoadImage (self, image_msg):
+    def LoadImage(self, image_msg):
         if self.counter % self.Xth_frame != 0:
             self.counter += 1
             return
@@ -90,10 +78,6 @@ class NormalLaneFollowing(DTROS):
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         self.cv_image = self.crop_img(cv_image)
 
-
-
-
-
     def callback(self, msg: MultiMaskGroups):
         # Wandelt sensor_msgs/Image[] in OpenCV-Bilder um
         white_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.white]
@@ -103,17 +87,12 @@ class NormalLaneFollowing(DTROS):
 
         rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
 
-
         self.FindLane(white_masks, yellow_masks, red_masks, dotted_masks)
 
         # Beispiel: Zeige erste weiße Maske (falls vorhanden)
         # if white_masks:
         #     cv2.imshow("Weiße Maske 0", white_masks[0])
         #     cv2.waitKey(1)
-
-
-
-
 
     def crop_img(self, img):
         img = img.copy()
@@ -127,7 +106,6 @@ class NormalLaneFollowing(DTROS):
 
         # NOTE: If needed place bird's eye view transformation here
 
-
     def extract_lane_center_from_mask(self, mask, height_roi):
         if mask is None or mask.size == 0:
             rospy.logwarn("Empty mask provided for lane center extraction.")
@@ -138,20 +116,13 @@ class NormalLaneFollowing(DTROS):
         if len(row_indices) > 0:
             return np.mean(row_indices)
         return None
-    
 
-
-
-    def FindLane (self, white_masks, yellow_masks):
+    def FindLane(self, white_masks, yellow_masks):
 
         try:
 
-
             white_lane_mask = white_masks[0] if white_masks else None
             yellow_lane_mask = yellow_masks[0] if yellow_masks else None
-
-
-
 
             default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 100
 
@@ -161,21 +132,17 @@ class NormalLaneFollowing(DTROS):
             ROIW = False
             ROIY = False
 
-
-
             center_white = self.extract_lane_center_from_mask(white_lane_mask, self.roi_height)
             if center_white is None:
                 ROIW = False
             else:
                 ROIW = True
 
-
             center_yellow = self.extract_lane_center_from_mask(yellow_lane_mask, self.roi_height)
             if center_yellow is None:
                 ROIY = False
             else:
                 ROIY = True
-
 
             # Check if we have at least one detection of class 1 (white line) and class 2 (yellow line)
             if ROIW == True and ROIY == True:
@@ -216,82 +183,59 @@ class NormalLaneFollowing(DTROS):
                 center_yellow,
             )
 
-
-
-
-
-
-
-
         except Exception as e:
             rospy.logwarn(f"Lane Center Compute Error: {e}. Using default values.")
 
-
-
-
-
-
-
-
     def visualize_lane(self, img, lane_center, center_white=None, center_yellow=None):
-            """
-            Create a visualization with three panels:
-            1. Original image
-            2. Original image with segmentation overlays
-            3. Original image with center points
-            """
-            h, w = img.shape[:2]
+        """
+        Create a visualization with three panels:
+        1. Original image
+        2. Original image with segmentation overlays
+        3. Original image with center points
+        """
+        h, w = img.shape[:2]
 
-            full_width = w
-            vis_image = np.zeros((h, full_width, 3), dtype=np.uint8)
+        full_width = w
+        vis_image = np.zeros((h, full_width, 3), dtype=np.uint8)
 
-            # Panel 2: Original with center points
-            center_vis = img.copy()
+        # Panel 2: Original with center points
+        center_vis = img.copy()
 
-            # Horizontale Linie bei ROI-Höhe
-            cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
+        # Horizontale Linie bei ROI-Höhe
+        cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
 
-            # Draw image center
-            cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
+        # Draw image center
+        cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
 
-            # Draw white lane center if available
-            if center_white is not None:
-                cv2.circle(center_vis, (int(center_white), self.roi_height), 8, (255, 255, 255), -1)
-                cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
+        # Draw white lane center if available
+        if center_white is not None:
+            cv2.circle(center_vis, (int(center_white), self.roi_height), 8, (255, 255, 255), -1)
+            cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
-            # Draw yellow lane center if available
-            if center_yellow is not None:
-                cv2.circle(center_vis, (int(center_yellow), self.roi_height), 8, (0, 255, 255), -1)
-                cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
+        # Draw yellow lane center if available
+        if center_yellow is not None:
+            cv2.circle(center_vis, (int(center_yellow), self.roi_height), 8, (0, 255, 255), -1)
+            cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
-            # Draw lane center
-            if lane_center is not None:
-                cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
-                cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-                cv2.line(center_vis, (int(lane_center), self.roi_height), (int(w / 2), self.roi_height), (0, 0, 255), 2)
+        # Draw lane center
+        if lane_center is not None:
+            cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
+            cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
+            cv2.line(center_vis, (int(lane_center), self.roi_height), (int(w / 2), self.roi_height), (0, 0, 255), 2)
 
-            vis_image[:, 0:w] = center_vis
+        vis_image[:, 0:w] = center_vis
 
-            # Add labels
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            cv2.putText(vis_image, "Segmentation", (10, 30), font, 1, (255, 255, 255), 2)
-            cv2.putText(vis_image, "Lane Centers", (w + 10, 30), font, 1, (255, 255, 255), 2)
+        # Add labels
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(vis_image, "Segmentation", (10, 30), font, 1, (255, 255, 255), 2)
+        cv2.putText(vis_image, "Lane Centers", (w + 10, 30), font, 1, (255, 255, 255), 2)
 
-            # Display the visualization
-            cv2.imshow("Lane Detection Visualization", vis_image)
-            cv2.waitKey(1)
-
-
-
-
-
-
-
+        # Display the visualization
+        cv2.imshow("Lane Detection Visualization", vis_image)
+        cv2.waitKey(1)
 
 
 if __name__ == "__main__":
 
     node = NormalLaneFollowing(node_name="NormalLaneFollowing")
     rospy.spin()
-
-

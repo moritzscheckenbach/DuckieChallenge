@@ -262,7 +262,6 @@ class DetectLaneNode(DTROS):
 
                     lane_center = center_yellow - default_lane_center_from_outer_line
 
-
                 ####ACHUNG ANPASSEN EVENTUELL!!!!
                 elif ROIW == False and ROIY == False:
                     rospy.logwarn("No lane masks detected by YOLO. Using default values.")
