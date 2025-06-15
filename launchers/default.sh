@@ -2,6 +2,10 @@
 
 source /environment.sh
 
+cd /code/catkin_ws
+catkin build
+source devel/setup.bash
+
 # initialize launch file
 dt-launchfile-init
 
@@ -16,9 +20,10 @@ dt-launchfile-init
 # dt-exec python3 -m "my_package.my_script"
 
 
-rosrun default lane_segmentation_node.py &
+rosrun default LaneSegmentation.py &
+rosrun normal_lane_following NormalLaneFollowing.py &
 rosrun duckie_control PID_control_lane_node.py &
-# rosrun duckie_control switch_control_node.py &
+rosrun duckie_control switch_control_node.py &
 
 
 

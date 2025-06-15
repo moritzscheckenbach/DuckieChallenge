@@ -8,6 +8,8 @@ processing:
 defaults:
   center_white: 600  # Relative position (percentage of image width)
   center_yellow: 40  # Relative position (percentage of image width)
+  center_dotted: 300  # Relative position (percentage of image width)
+
 
 # Red stop detection parameters
 red_stop:

@@ -7,9 +7,10 @@ import cv2
 import numpy as np
 import rospy
 import yaml
+import rospkg
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
-from MultiMaskGroups.msg import MultiMaskGroups
+from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool, Float64
 from ultralytics import YOLO
@@ -34,7 +35,9 @@ class LaneSegmentation(DTROS):
         self.bridge = CvBridge()
 
         # Initialize YOLO model for lane segmentation
-        yolo_model_path = "packages/default/src/model/yolo_v11_lane_seg_20250528.pt"  # Path to your lane segmentation model
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path('default')
+        yolo_model_path = os.path.join(package_path, 'src', 'model', 'yolo_v11_lane_seg_20250528.pt')
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
@@ -55,9 +58,11 @@ class LaneSegmentation(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.SegmentImage, queue_size=1)
 
+
     def _load_config(self):
-        """Load configuration from YAML file with fallback to default values."""
-        config_path = "packages/default/config/processing_params.yaml"
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path('default')  # Name deines Packages!
+        config_path = os.path.join(package_path, 'config', 'processing_params.yaml')
 
         try:
             if os.path.exists(config_path):
@@ -66,9 +71,11 @@ class LaneSegmentation(DTROS):
                     rospy.loginfo(f"Loaded configuration from {config_path}")
                     return config
             else:
-                rospy.logerr(f"Error loading config file: {e}.")
+                rospy.logerr(f"Config file not found: {config_path}")
+                return None
         except Exception as e:
             rospy.logerr(f"Error loading config file: {e}.")
+            return None
 
     def crop_img(self, img):
         img = img.copy()
@@ -152,7 +159,7 @@ class LaneSegmentation(DTROS):
             white_lane_mask = None
             yellow_lane_mask = None
             red_stop_mask = None
-            dotted_lane_mask = None
+            dotted_mask = None
 
             all_white_masks = []
             all_yellow_masks = []

@@ -7,9 +7,10 @@ import cv2
 import numpy as np
 import rospy
 import yaml
+import rospkg
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
-from MultiMaskGroups.msg import MultiMaskGroups
+from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool, Float64
 from ultralytics import YOLO
@@ -34,6 +35,8 @@ class NormalLaneFollowing(DTROS):
         self.roi_height = self.config["processing"]["roi_height"]  # Height of the ROI for lane center extraction
         self.default_center_white = self.config["defaults"]["center_white"]  # Default value for fallback
         self.default_center_yellow = self.config["defaults"]["center_yellow"]  # Default value for fallback
+        self.default_center_dotted = self.config["defaults"]["center_dotted"]
+
 
         self.red_stop_roi_window_height = self.config["red_stop"]["window_height"]
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
@@ -51,9 +54,11 @@ class NormalLaneFollowing(DTROS):
 
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
 
+
     def _load_config(self):
-        """Load configuration from YAML file with fallback to default values."""
-        config_path = "packages/default/config/processing_params.yaml"
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path('default')  # Name deines Packages!
+        config_path = os.path.join(package_path, 'config', 'processing_params.yaml')
 
         try:
             if os.path.exists(config_path):
@@ -62,9 +67,11 @@ class NormalLaneFollowing(DTROS):
                     rospy.loginfo(f"Loaded configuration from {config_path}")
                     return config
             else:
-                rospy.logerr(f"Error loading config file: {e}.")
+                rospy.logerr(f"Config file not found: {config_path}")
+                return None
         except Exception as e:
             rospy.logerr(f"Error loading config file: {e}.")
+            return None
 
     def LoadImage(self, image_msg):
         if self.counter % self.Xth_frame != 0:
@@ -87,7 +94,7 @@ class NormalLaneFollowing(DTROS):
 
         rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
 
-        self.FindLane(white_masks, yellow_masks, red_masks, dotted_masks)
+        self.FindLane(white_masks, yellow_masks)
 
         # Beispiel: Zeige erste weiße Maske (falls vorhanden)
         # if white_masks:
@@ -123,14 +130,17 @@ class NormalLaneFollowing(DTROS):
 
             white_lane_mask = white_masks[0] if white_masks else None
             yellow_lane_mask = yellow_masks[0] if yellow_masks else None
+           
 
             default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 100
 
             center_white = self.default_center_white
             center_yellow = self.default_center_yellow
+            center_dotted = self.default_center_dotted
 
             ROIW = False
             ROIY = False
+ 
 
             center_white = self.extract_lane_center_from_mask(white_lane_mask, self.roi_height)
             if center_white is None:
