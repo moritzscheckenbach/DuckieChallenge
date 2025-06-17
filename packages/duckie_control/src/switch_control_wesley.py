@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 from collections import defaultdict
 
 import rospy
@@ -37,7 +38,7 @@ class AdminNode:
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
         self.current_mode = "normal_drive"
-        self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/admin_status", String, queue_size=1, latch=True)
+        self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", String, queue_size=1, latch=True)
         # self.bool_pub = rospy.Publisher(f"/{self._vehicle_name}/admin_node_enable_map", Bool, queue_size=1, latch=True)
 
         # Placeholder für Bool-Map pro Node
@@ -45,6 +46,7 @@ class AdminNode:
 
         # Sub auf Event, z. B. Duckie erkannt
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_detected", Bool, self._on_duckiebot_detected)
+        rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_duckiebot_detected)
 
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_avoided", Bool, self._back_to_lane_following)
         rospy.Subscriber(f"/{self._vehicle_name}/ducie_avoided", Bool, self._back_to_lane_following)
