@@ -5,14 +5,14 @@ from enum import Enum
 
 import cv2
 import numpy as np
+import rospkg
 import rospy
 import yaml
-import rospkg
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
 from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
-from std_msgs.msg import Bool, Float64
+from std_msgs.msg import Bool, Float64, String
 from ultralytics import YOLO
 
 
@@ -37,7 +37,6 @@ class NormalLaneFollowing(DTROS):
         self.default_center_yellow = self.config["defaults"]["center_yellow"]  # Default value for fallback
         self.default_center_dotted = self.config["defaults"]["center_dotted"]
 
-
         self.red_stop_roi_window_height = self.config["red_stop"]["window_height"]
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
@@ -45,6 +44,8 @@ class NormalLaneFollowing(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
+
+        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", String, self.cb_mode_check, queue_size=1)
 
         self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
@@ -54,11 +55,10 @@ class NormalLaneFollowing(DTROS):
 
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
 
-
     def _load_config(self):
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('default')  # Name deines Packages!
-        config_path = os.path.join(package_path, 'config', 'processing_params.yaml')
+        package_path = rospack.get_path("default")  # Name deines Packages!
+        config_path = os.path.join(package_path, "config", "processing_params.yaml")
 
         try:
             if os.path.exists(config_path):
@@ -85,16 +85,29 @@ class NormalLaneFollowing(DTROS):
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         self.cv_image = self.crop_img(cv_image)
 
+    def cb_mode_check(self, msg):
+        """
+        Callback to check the current mode of the vehicle.
+        If the mode is 'normal_drive', start processing images.
+        """
+        if msg.data == "normal_drive":
+            rospy.loginfo("Normal Lane Following Node is active.")
+            self.node_active = True
+        else:
+            rospy.loginfo("Normal Lane Following Node is inactive.")
+            self.node_active = False
+
     def callback(self, msg: MultiMaskGroups):
-        # Wandelt sensor_msgs/Image[] in OpenCV-Bilder um
-        white_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.white]
-        yellow_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.yellow]
-        red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
-        dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
+        if self.node_active:
+            # Wandelt sensor_msgs/Image[] in OpenCV-Bilder um
+            white_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.white]
+            yellow_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.yellow]
+            red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
+            dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
 
-        rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
+            rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
 
-        self.FindLane(white_masks, yellow_masks)
+            self.FindLane(white_masks, yellow_masks)
 
         # Beispiel: Zeige erste weiße Maske (falls vorhanden)
         # if white_masks:
@@ -130,7 +143,6 @@ class NormalLaneFollowing(DTROS):
 
             white_lane_mask = white_masks[0] if white_masks else None
             yellow_lane_mask = yellow_masks[0] if yellow_masks else None
-           
 
             default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 100
 
@@ -140,7 +152,6 @@ class NormalLaneFollowing(DTROS):
 
             ROIW = False
             ROIY = False
- 
 
             center_white = self.extract_lane_center_from_mask(white_lane_mask, self.roi_height)
             if center_white is None:

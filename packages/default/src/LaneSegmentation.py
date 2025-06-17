@@ -5,9 +5,9 @@ from enum import Enum
 
 import cv2
 import numpy as np
+import rospkg
 import rospy
 import yaml
-import rospkg
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
 from normal_lane_following.msg import MultiMaskGroups
@@ -33,11 +33,14 @@ class LaneSegmentation(DTROS):
 
         self.pub_all_masks = rospy.Publisher(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, queue_size=1)
         self.bridge = CvBridge()
+        self.pub_red_stop_detected = rospy.Publisher(f"/{self._vehicle_name}/redstop_detected", Bool, queue_size=1)
+
+        self.currently_red = False
 
         # Initialize YOLO model for lane segmentation
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('default')
-        yolo_model_path = os.path.join(package_path, 'src', 'model', 'yolo_v11_lane_seg_20250528.pt')
+        package_path = rospack.get_path("default")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250528.pt")
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
@@ -58,11 +61,10 @@ class LaneSegmentation(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.SegmentImage, queue_size=1)
 
-
     def _load_config(self):
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('default')  # Name deines Packages!
-        config_path = os.path.join(package_path, 'config', 'processing_params.yaml')
+        package_path = rospack.get_path("default")  # Name deines Packages!
+        config_path = os.path.join(package_path, "config", "processing_params.yaml")
 
         try:
             if os.path.exists(config_path):
@@ -124,6 +126,7 @@ class LaneSegmentation(DTROS):
             return None
 
     def publish_masks(self, white_masks, yellow_masks, red_masks, dotted_masks):
+        self.check_red_stop(red_masks)
         msg = MultiMaskGroups()
         now = rospy.Time.now()
 
@@ -139,6 +142,70 @@ class LaneSegmentation(DTROS):
         msg.dotted = convert(dotted_masks)
 
         self.pub_all_masks.publish(msg)
+
+    def check_red_stop(self, red_masks):
+        """
+        Check if the red stop mask indicates a stop condition.
+
+        Logic:
+        - If there was a red mask detected in the previous frame but not in the current frame,
+        publish True on the redstop_detected topic.
+        - Otherwise do nothing.
+        """
+        # Initialize a combined mask
+        red_mask = None
+
+        # Walk through all the red masks in the list and combine them
+        if red_masks:
+            for mask in red_masks:
+                if mask is not None:
+                    if red_mask is None:
+                        # Initialize the combined mask with the first valid mask
+                        red_mask = mask.copy()
+                    else:
+                        # Combine the masks using logical OR
+                        red_mask = np.logical_or(red_mask, mask).astype(np.uint8)
+
+        if red_mask is None:
+            # No mask provided for checking
+            has_red_now = False
+        else:
+            # Get the ROI window dimensions and position from config
+            roi_height = self.config["red_stop"]["window_height"]
+            roi_width = self.config["red_stop"]["window_width"]
+            bottom_offset = self.config["red_stop"]["window_bottom_offset"]
+
+            # Calculate ROI position
+            y_start = red_mask.shape[0] - bottom_offset - roi_height
+            x_start = (red_mask.shape[1] - roi_width) // 2
+
+            # Make sure the ROI is within image bounds
+            y_start = max(0, y_start)
+            y_end = min(red_mask.shape[0], y_start + roi_height)
+            x_start = max(0, x_start)
+            x_end = min(red_mask.shape[1], x_start + roi_width)
+
+            # Extract window from the mask
+            window_mask = red_mask[y_start:y_end, x_start:x_end]
+
+            # Check if mask has red pixels in ROI
+            if window_mask.size > 0:
+                # Calculate percentage of red pixels in the ROI
+                mask_percentage = np.sum(window_mask > 0) / window_mask.size * 100
+                has_red_now = True
+                rospy.logdebug(f"Red mask coverage in ROI: {mask_percentage:.2f}%")
+            else:
+                has_red_now = False
+
+        # Handle transition: if we HAD red but NOW don't, publish True
+        if self.currently_red and not has_red_now:
+            rospy.loginfo("Red mask disappeared from ROI - publishing stop signal")
+            red_stop_msg = Bool()
+            red_stop_msg.data = True
+            self.pub_red_stop_detected.publish(red_stop_msg)
+
+        # Update state for next frame
+        self.currently_red = has_red_now
 
     def SegmentImage(self, image_msg):
         if self.counter % self.Xth_frame != 0:
