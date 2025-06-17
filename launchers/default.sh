@@ -23,7 +23,7 @@ dt-launchfile-init
 rosrun default LaneSegmentation.py &
 rosrun normal_lane_following NormalLaneFollowing.py &
 rosrun duckie_control PID_control_lane_node.py &
-rosrun duckie_control switch_control_node.py &
+#rosrun duckie_control switch_control_node.py &
 
 
 
