@@ -11,10 +11,11 @@ from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
 from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
-from std_msgs.msg import Bool, Float64, Int32, String
+from std_msgs.msg import Bool, Float64, Int32, Int32MultiArray, String
 
 
-class IntersectionState(Enum):
+class IntersectionHandlingNodeState(Enum):
+    OFF = "off"
     CLASSIFYING_INTERSECTION = "classifying_intersection"
     CHOOSING_ACTION = "choosing_action"
     CHECK_TRAFFIC_RULES = "checking_traffic_rules"
@@ -35,15 +36,14 @@ class IntersectionHandlingNode(DTROS):
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
         # State initialization
-        self._active = False
-        self._state = IntersectionState.OFF
+        self._node_active = False
+        self._state = IntersectionHandlingNodeState.OFF
         self._intersection_direction = None
-        self._action_start_time = None
 
         # Subscribers
-        self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControlMode, queue_size=1)
-        self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cbLaneDetected, queue_size=1)
-        self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", String, self.cbMasksDetected, queue_size=1)
+        self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
+        self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cblane, queue_size=1)
+        self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", String, self.cbmasks, queue_size=1)
 
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
@@ -51,13 +51,27 @@ class IntersectionHandlingNode(DTROS):
 
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode initialized with state: {self._state}")
 
+    def cbControlMode(self, msg: Int32MultiArray):
+        if msg.data[7] == 1:
+            self._node_active = True
+            rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode is now active")
+            self.chooseIntersectionDirection()
+        else:
+            self._node_active = False
+
     def cbmasks(self, msg: MultiMaskGroups):
-        self.red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
+        if self._node_active == True:
+            self.red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
+
+    def classifyIntersectionType(self):
+        self._state = IntersectionHandlingNodeState.CLASSIFYING_INTERSECTION
+        # TODO: Integrate logic to determine the intersection type
 
     def chooseIntersectionDirection(self):
+        self._state = IntersectionHandlingNodeState.CLASSIFYING_INTERSECTION
+
         intersection_type = ["LeftStraightRight", "LeftStraight", "LeftRight", "StraightRight"]
 
-        # TODO: Integrate logic to determine the intersection type
         if "number of red masks" == 4:
             intersection_type = "LeftStraightRight"
         elif "number of red masks" == 3:
@@ -76,6 +90,7 @@ class IntersectionHandlingNode(DTROS):
         if not directions == []:
             self._intersection_direction = random.choice(directions)
             rospy.loginfo(f"Chosen intersection direction: {self._intersection_direction}")
+
             self.turn()
         else:
             rospy.logwarn("No valid intersection direction found, defaulting to STRAIGHT")
