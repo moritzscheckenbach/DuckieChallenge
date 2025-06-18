@@ -15,8 +15,9 @@ from std_msgs.msg import Bool, Float64, Int32, String
 
 
 class IntersectionState(Enum):
-    STOPPING = "stopped"
+    CLASSIFYING_INTERSECTION = "classifying_intersection"
     CHOOSING_ACTION = "choosing_action"
+    CHECK_TRAFFIC_RULES = "checking_traffic_rules"
     EXECUTING_ACTION = "executing_action"
     COMPLETED = "completed"
 
@@ -51,11 +52,7 @@ class IntersectionHandlingNode(DTROS):
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode initialized with state: {self._state}")
 
     def cbmasks(self, msg: MultiMaskGroups):
-        # Wandelt sensor_msgs/Image[] in OpenCV-Bilder um
-        # self.white_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.white]
-        # self.yellow_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.yellow]
         self.red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
-        # self.dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
 
     def chooseIntersectionDirection(self):
         intersection_type = ["LeftStraightRight", "LeftStraight", "LeftRight", "StraightRight"]
