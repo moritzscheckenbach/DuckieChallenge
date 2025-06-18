@@ -13,7 +13,6 @@ from duckietown.dtros import DTROS, NodeType
 from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool, Float64, Int32MultiArray, String
-from switch_conntrol_node.py import ControlMode
 from ultralytics import YOLO
 
 

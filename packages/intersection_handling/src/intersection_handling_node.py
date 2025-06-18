@@ -232,73 +232,72 @@ class IntersectionHandlingNode(DTROS):
         start_time = time.time()
         rate = rospy.Rate(10)  # 10Hz control loop
 
-        match self._intersection_direction:
-            case IntersectionDirection.LEFT:
-                rospy.loginfo("Turning left")
+        if self._intersection_direction == IntersectionDirection.LEFT:
+            rospy.loginfo("Turning left")
 
-                # First go straight for a bit
-                while time.time() - start_time < straight_time / 2:
-                    cmd_msg.v = v_straight
-                    cmd_msg.omega = 0.0
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # First go straight for a bit
+            while time.time() - start_time < straight_time / 2:
+                cmd_msg.v = v_straight
+                cmd_msg.omega = 0.0
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-                # Then execute left turn
-                turn_start = time.time()
-                while time.time() - turn_start < turn_time:
-                    cmd_msg.v = v_turn
-                    cmd_msg.omega = omega_left
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # Then execute left turn
+            turn_start = time.time()
+            while time.time() - turn_start < turn_time:
+                cmd_msg.v = v_turn
+                cmd_msg.omega = omega_left
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-                # Finally go straight again
-                straight_start = time.time()
-                while time.time() - straight_start < straight_time / 2:
-                    cmd_msg.v = v_straight
-                    cmd_msg.omega = 0.0
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # Finally go straight again
+            straight_start = time.time()
+            while time.time() - straight_start < straight_time / 2:
+                cmd_msg.v = v_straight
+                cmd_msg.omega = 0.0
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-            case IntersectionDirection.STRAIGHT:
-                rospy.loginfo("Going straight")
+        elif self._intersection_direction == IntersectionDirection.STRAIGHT:
+            rospy.loginfo("Going straight")
 
-                # Go straight for defined distance/time
-                while time.time() - start_time < straight_time:
-                    cmd_msg.v = v_straight
-                    cmd_msg.omega = 0.0
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # Go straight for defined distance/time
+            while time.time() - start_time < straight_time:
+                cmd_msg.v = v_straight
+                cmd_msg.omega = 0.0
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-            case IntersectionDirection.RIGHT:
-                rospy.loginfo("Turning right")
+        elif self._intersection_direction == IntersectionDirection.RIGHT:
+            rospy.loginfo("Turning right")
 
-                # First go straight for a bit
-                while time.time() - start_time < straight_time / 2:
-                    cmd_msg.v = v_straight
-                    cmd_msg.omega = 0.0
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # First go straight for a bit
+            while time.time() - start_time < straight_time / 2:
+                cmd_msg.v = v_straight
+                cmd_msg.omega = 0.0
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-                # Then execute right turn
-                turn_start = time.time()
-                while time.time() - turn_start < turn_time:
-                    cmd_msg.v = v_turn
-                    cmd_msg.omega = omega_right
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # Then execute right turn
+            turn_start = time.time()
+            while time.time() - turn_start < turn_time:
+                cmd_msg.v = v_turn
+                cmd_msg.omega = omega_right
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-                # Finally go straight again
-                straight_start = time.time()
-                while time.time() - straight_start < straight_time / 2:
-                    cmd_msg.v = v_straight
-                    cmd_msg.omega = 0.0
-                    self.pub_cmd_vel.publish(cmd_msg)
-                    rate.sleep()
+            # Finally go straight again
+            straight_start = time.time()
+            while time.time() - straight_start < straight_time / 2:
+                cmd_msg.v = v_straight
+                cmd_msg.omega = 0.0
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
 
-        # # Stop the robot
-        # cmd_msg.v = 0.0
-        # cmd_msg.omega = 0.0
-        # self.pub_cmd_vel.publish(cmd_msg)
+        # Stop the robot
+        cmd_msg.v = 0.0
+        cmd_msg.omega = 0.0
+        self.pub_cmd_vel.publish(cmd_msg)
 
         # Mark intersection handling as completed
         self.publishDone()
