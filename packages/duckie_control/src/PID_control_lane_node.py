@@ -5,7 +5,7 @@ import os
 import rospy
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
-from std_msgs.msg import Float64, Int32
+from std_msgs.msg import Float64, Int32, Int32MultiArray
 from switch_control_node import ControlType
 
 
@@ -19,12 +19,12 @@ class ControlLaneNode(DTROS):
         self.pub_cmd_vel = rospy.Publisher(twist_topic, Twist2DStamped, queue_size=1)
 
         self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cbFollowLane, queue_size=1)
-        self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl, queue_size=1)
+        self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControl, queue_size=1)
 
         rospy.on_shutdown(self.fnShutDown)
 
     def cbControl(self, msg):
-        if msg.data == ControlType.Lane.value:
+        if msg.data[7] == 1:
             self.enable = True
 
         else:
