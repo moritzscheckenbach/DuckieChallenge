@@ -5,9 +5,9 @@ from enum import Enum
 
 import cv2
 import numpy as np
+import rospkg
 import rospy
 import yaml
-import rospkg
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
 from normal_lane_following.msg import MultiMaskGroups
@@ -36,8 +36,8 @@ class LaneSegmentation(DTROS):
 
         # Initialize YOLO model for lane segmentation
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('default')
-        yolo_model_path = os.path.join(package_path, 'src', 'model', 'yolo_v11_lane_seg_20250528.pt')
+        package_path = rospack.get_path("default")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250528.pt")
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)
@@ -58,11 +58,10 @@ class LaneSegmentation(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.SegmentImage, queue_size=1)
 
-
     def _load_config(self):
         rospack = rospkg.RosPack()
-        package_path = rospack.get_path('default')  # Name deines Packages!
-        config_path = os.path.join(package_path, 'config', 'processing_params.yaml')
+        package_path = rospack.get_path("default")
+        config_path = os.path.join(package_path, "config", "processing_params.yaml")
 
         try:
             if os.path.exists(config_path):
