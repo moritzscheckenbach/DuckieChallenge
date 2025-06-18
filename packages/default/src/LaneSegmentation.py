@@ -40,7 +40,7 @@ class LaneSegmentation(DTROS):
         # Initialize YOLO model for lane segmentation
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
-        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250528.pt")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250610.pt")
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)

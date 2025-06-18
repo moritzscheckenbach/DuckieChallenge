@@ -52,17 +52,16 @@ class NormalLaneFollowingLeft(DTROS):
         # Camera topic
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
-        # Publishers and subscribers (activated when node_active)
-        if self.node_active:
-            self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane_left", Float64, queue_size=1)
-            self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
-            self.counter = 0
-            self.bridge = CvBridge()
-            self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.load_image, queue_size=1)
+        # Publishers
+        self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane_left", Float64, queue_size=1)
+        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
+        self.counter = 0
+        self.bridge = CvBridge()
+        self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.load_image, queue_size=1)
 
     def activate_node(self, msg):
         # Activate/deactivate based on control mode (True means left-lane mode)
-        if msg.data[2] == True:
+        if msg.data[2] == 1:
             rospy.loginfo("Left-Lane Following Node is active.")
             self.node_active = True
         else:

@@ -50,25 +50,21 @@ class NormalLaneFollowing(DTROS):
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
-        if self.node_active:
-            self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
+        self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
+        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
-            # self.sub = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", String, self.cb_mode_check, queue_size=1)
+        # Image processing nessecities
+        self.counter = 0
+        self.bridge = CvBridge()
 
-            self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
-
-            # Image processing nessecities
-            self.counter = 0
-            self.bridge = CvBridge()
-
-            self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
+        self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
 
     def ActivateNode(self, msg):
         """
         Callback to activate or deactivate the node based on the current mode.
         """
         # if msg.data[1] == ControlMode.NORMAL_DRIVE.value:
-        if msg.data[0] == True:  # TODO: überprüfen, ob das so funktioniert
+        if msg.data[0] == 1:
             rospy.loginfo("Normal Lane Following Node is active.")
             self.node_active = True
         else:
@@ -104,18 +100,6 @@ class NormalLaneFollowing(DTROS):
         np_arr = np.frombuffer(image_msg.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         self.cv_image = self.crop_img(cv_image)
-
-    def cb_mode_check(self, msg):
-        """
-        Callback to check the current mode of the vehicle.
-        If the mode is 'normal_drive', start processing images.
-        """
-        if msg.data == "normal_drive":
-            rospy.loginfo("Normal Lane Following Node is active.")
-            self.node_active = True
-        else:
-            rospy.loginfo("Normal Lane Following Node is inactive.")
-            self.node_active = False
 
     def callback(self, msg: MultiMaskGroups):
         if self.node_active:

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
 import os
+
 import cv2
 import numpy as np
+import rospkg
 import rospy
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
+from geometry_msgs.msg import Pose2D
 from sensor_msgs.msg import CompressedImage
 from ultralytics import YOLO
-
 from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
-from geometry_msgs.msg import Pose2D
 
 
 class ShowCameraNode(DTROS):
@@ -20,10 +21,7 @@ class ShowCameraNode(DTROS):
     """
 
     def __init__(self, node_name):
-        super(ShowCameraNode, self).__init__(
-            node_name=node_name,
-            node_type=NodeType.VISUALIZATION
-        )
+        super(ShowCameraNode, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
         self._vehicle_name = os.environ.get("VEHICLE_NAME", "")
         if not self._vehicle_name:
@@ -33,28 +31,21 @@ class ShowCameraNode(DTROS):
         self.bridge = CvBridge()
 
         # YOLO-Modell laden
-        model_path = "/home/duckie6/ConnorMCQuackor/DuckieChallenge_git/DuckieChallenge-main/packages/duckie_detection/src/model/yolo_v8s_duckiedetection.pt"
-        if os.path.exists(model_path):
-            self.model = YOLO(model_path)
-            rospy.loginfo(f"YOLO-Modell geladen: {model_path}")
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("default")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_obj_dect_20250610.pt")
+        if os.path.exists(yolo_model_path):
+            self.model = YOLO(yolo_model_path)
+            rospy.loginfo(f"YOLO-Modell geladen: {yolo_model_path}")
         else:
-            rospy.logerr(f"YOLO-Modell nicht gefunden: {model_path}")
+            rospy.logerr(f"YOLO-Modell nicht gefunden: {yolo_model_path}")
             self.model = None
 
         # Publisher für Detections
-        self.pub_all_masks = rospy.Publisher(
-            f"/{self._vehicle_name}/detect/objects",
-            Detection2DArray,
-            queue_size=1
-        )
+        self.pub_all_masks = rospy.Publisher(f"/{self._vehicle_name}/detect/objects", Detection2DArray, queue_size=1)
 
         # Bild-Subscriber
-        self.sub_image = rospy.Subscriber(
-            self._camera_topic,
-            CompressedImage,
-            self.cb_display_image,
-            queue_size=1
-        )
+        self.sub_image = rospy.Subscriber(self._camera_topic, CompressedImage, self.cb_display_image, queue_size=1)
         rospy.loginfo(f"[{self.node_name}] Abonniert: {self._camera_topic}")
 
     def cb_display_image(self, image_msg):
@@ -69,26 +60,14 @@ class ShowCameraNode(DTROS):
             if self.model is not None:
                 results = self.model(cv_image)
 
-                for box, conf, cls in zip(
-                    results[0].boxes.xyxy,
-                    results[0].boxes.conf,
-                    results[0].boxes.cls
-                ):
+                for box, conf, cls in zip(results[0].boxes.xyxy, results[0].boxes.conf, results[0].boxes.cls):
                     x1, y1, x2, y2 = map(int, box)
                     label = self.model.names[int(cls)]
                     score = float(conf)
 
                     # Bounding Box zeichnen
                     cv2.rectangle(cv_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(
-                        cv_image,
-                        f"{label} {score:.2f}",
-                        (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5,
-                        (0, 255, 0),
-                        1
-                    )
+                    cv2.putText(cv_image, f"{label} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
                     # ROS Detection2D Nachricht bauen
                     detection = Detection2D()
