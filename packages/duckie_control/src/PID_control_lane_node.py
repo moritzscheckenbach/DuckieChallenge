@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-
 import os
 
 import rospy
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
-from std_msgs.msg import Float64, Int32, Int32MultiArray
+from std_msgs.msg import Float64, Int32
 from switch_control_node import ControlType
 
 
@@ -19,12 +17,12 @@ class ControlLaneNode(DTROS):
         self.pub_cmd_vel = rospy.Publisher(twist_topic, Twist2DStamped, queue_size=1)
 
         self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cbFollowLane, queue_size=1)
-        self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControl, queue_size=1)
+        self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl, queue_size=1)
 
         rospy.on_shutdown(self.fnShutDown)
 
     def cbControl(self, msg):
-        if msg.data[4] == 1:
+        if msg.data == ControlType.Lane.value:
             self.enable = True
 
         else:
@@ -49,9 +47,9 @@ class ControlLaneNode(DTROS):
         """
 
         # PID Parameters
-        Kp = 5.50  # Proportional gain
-        Ki = 0.80  # Integral gain
-        Kd = 2.50  # Derivative gain
+        Kp = 4.00  # Proportional gain
+        Ki = 0.07  # Integral gain
+        Kd = 4.50  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
@@ -61,6 +59,20 @@ class ControlLaneNode(DTROS):
         # Calculate current error
         current_error = (center - 320) / 320.0  # Normalize error to [-1, 1] range
 
+        if abs(current_error) >= 1.0:
+            self.integral = 0
+
+        self.integral += current_error
+        self.integral = max(min(self.integral, 200), -200)
+
+        derivative = current_error - self.prev_error
+
+        self.prev_error = current_error
+        pid_output = Kp * current_error + Ki * self.integral + Kd * derivative
+
+        pid_output = max(min(pid_output, 4), -4)
+
+        """
         # Calculate integral term with anti-windup
         self.integral += current_error
         if self.integral > 800:  # Limit integral windup
@@ -82,10 +94,10 @@ class ControlLaneNode(DTROS):
             pid_output = 8.0
         elif pid_output < -8.0:
             pid_output = -8.0
-
+        """
         # Adjust velocity based on curve sharpness (slow down in curves)
-        base_speed = 0.35
-        curve_factor = abs(pid_output) / 8.0  # Normalized curve sharpness
+        base_speed = 0.25
+        curve_factor = abs(pid_output) / 4.0  # Normalized curve sharpness
         v = base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
 
         twist = Twist2DStamped(v=v, omega=-pid_output)
