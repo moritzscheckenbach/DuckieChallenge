@@ -14,6 +14,6 @@ defaults:
 # Red stop detection parameters
 red_stop:
   window_height: 80  # Height of the window (px)
-  window_width: 200  # Width of the window (px)
-  window_bottom_offset: 10  # Offset from bottom (px)
+  window_width: 640  # Width of the window (px)
+  window_bottom_offset: 0  # Offset from bottom (px)
   detection_threshold: 50  # Percentage threshold for stop detection
