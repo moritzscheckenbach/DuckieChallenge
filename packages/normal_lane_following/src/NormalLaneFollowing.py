@@ -12,7 +12,8 @@ from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
 from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
-from std_msgs.msg import Bool, Float64, String
+from std_msgs.msg import Bool, Float64, Int32MultiArray, String
+from switch_conntrol_node.py import ControlMode
 from ultralytics import YOLO
 
 
@@ -26,6 +27,13 @@ class NormalLaneFollowing(DTROS):
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
         self.image_height = 480  # Default image height before cropping
+
+        """
+        Angepasst an switch_control_node.py
+        """
+        self.node_active = False  # Flag to check if the node is active
+        self._mode_topic = f"/{self._vehicle_name}/current_mode"
+        self.sub_modus = rospy.Subscriber(self._camera_topic, Int32MultiArray, self.ActivateNode, queue_size=1)
 
         # Load configuration parameters
         self.config = self._load_config()
@@ -43,17 +51,30 @@ class NormalLaneFollowing(DTROS):
 
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
 
-        self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
+        if self.node_active:
+            self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
 
-        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", String, self.cb_mode_check, queue_size=1)
+            # self.sub = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", String, self.cb_mode_check, queue_size=1)
 
-        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
+            self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
-        # Image processing nessecities
-        self.counter = 0
-        self.bridge = CvBridge()
+            # Image processing nessecities
+            self.counter = 0
+            self.bridge = CvBridge()
 
-        self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
+            self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
+
+    def ActivateNode(self, msg):
+        """
+        Callback to activate or deactivate the node based on the current mode.
+        """
+        # if msg.data[1] == ControlMode.NORMAL_DRIVE.value:
+        if msg.data[0] == True:  # TODO: überprüfen, ob das so funktioniert
+            rospy.loginfo("Normal Lane Following Node is active.")
+            self.node_active = True
+        else:
+            rospy.loginfo("Normal Lane Following Node is inactive.")
+            self.node_active = False
 
     def _load_config(self):
         rospack = rospkg.RosPack()

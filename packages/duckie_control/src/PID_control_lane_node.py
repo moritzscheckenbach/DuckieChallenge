@@ -24,7 +24,7 @@ class ControlLaneNode(DTROS):
         rospy.on_shutdown(self.fnShutDown)
 
     def cbControl(self, msg):
-        if msg.data[7] == 1:
+        if msg.data[4] == 1:
             self.enable = True
 
         else:
