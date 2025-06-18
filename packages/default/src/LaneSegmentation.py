@@ -172,11 +172,11 @@ class LaneSegmentation(DTROS):
             if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
                 # Get all detected classes
                 detected_classes = results[0].boxes.cls.cpu().numpy().astype(int)
-                rospy.logwarn(f"Detected classes: {detected_classes}")
+                rospy.loginfo(f"Detected classes: {detected_classes}")
 
-                if 1 in detected_classes:
+                if 2 in detected_classes:
                     # Extract white lane class
-                    white_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 1]
+                    white_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 2]
                     raw_white_lane_mask = results[0].masks[white_indices[0]].data.cpu().numpy()
                     white_lane_mask = self.process_segmentation_mask(raw_white_lane_mask, cv_image.shape)
 
@@ -187,9 +187,9 @@ class LaneSegmentation(DTROS):
                         if mask is not None:
                             all_white_masks.append(mask)
 
-                if 2 in detected_classes:
+                if 3 in detected_classes:
                     # Extract yellow lane class
-                    yellow_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 2]
+                    yellow_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 3]
                     raw_yellow_lane_mask = results[0].masks[yellow_indices[0]].data.cpu().numpy()
                     yellow_lane_mask = self.process_segmentation_mask(raw_yellow_lane_mask, cv_image.shape)
 
@@ -200,9 +200,9 @@ class LaneSegmentation(DTROS):
                         if mask is not None:
                             all_yellow_masks.append(mask)
 
-                if 0 in detected_classes:
+                if 1 in detected_classes:
                     # Extract red stop class
-                    red_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 0]
+                    red_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 1]
                     if red_indices:
                         raw_red_stop_mask = results[0].masks[red_indices[0]].data.cpu().numpy()
                         red_stop_mask = self.process_segmentation_mask(raw_red_stop_mask, cv_image.shape)
@@ -214,9 +214,9 @@ class LaneSegmentation(DTROS):
                         if mask is not None:
                             all_red_masks.append(mask)
 
-                if 3 in detected_classes:
+                if 0 in detected_classes:
                     # Extract dotted stop class
-                    dotted_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 3]
+                    dotted_indices = [i for i, cls in enumerate(results[0].boxes.cls) if int(cls) == 0]
                     if dotted_indices:
                         raw_dotted_mask = results[0].masks[dotted_indices[0]].data.cpu().numpy()
                         dotted_mask = self.process_segmentation_mask(raw_dotted_mask, cv_image.shape)

@@ -16,10 +16,10 @@ from std_msgs.msg import Bool, Float64, Int32MultiArray, String
 from ultralytics import YOLO
 
 
-class NormalLaneFollowingLeft(DTROS):
+class OppositeLaneFollowingLeft(DTROS):
     def __init__(self, node_name):
         # initialize the DTROS parent class
-        super(NormalLaneFollowingLeft, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
+        super(OppositeLaneFollowingLeft, self).__init__(node_name=node_name, node_type=NodeType.VISUALIZATION)
 
         self.cv_image = None  # Placeholder for the current image
         self._vehicle_name = os.environ["VEHICLE_NAME"]
@@ -49,14 +49,14 @@ class NormalLaneFollowingLeft(DTROS):
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
-        # Camera topic
-        self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
-
         # Publishers
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane_left", Float64, queue_size=1)
         self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
         self.counter = 0
         self.bridge = CvBridge()
+
+        # Camera topic
+        self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.load_image, queue_size=1)
 
     def activate_node(self, msg):
@@ -165,6 +165,6 @@ class NormalLaneFollowingLeft(DTROS):
 
 
 if __name__ == "__main__":
-    rospy.init_node("NormalLaneFollowingLeft", anonymous=False)
-    node = NormalLaneFollowingLeft(node_name="NormalLaneFollowingLeft")
+    # rospy.init_node("OppositeLaneFollowingLeft", anonymous=False)
+    node = OppositeLaneFollowingLeft(node_name="OppositeLaneFollowingLeft")
     rospy.spin()

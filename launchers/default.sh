@@ -6,6 +6,12 @@ cd /code/catkin_ws
 catkin build
 source devel/setup.bash
 
+
+cd /code/catkin_ws
+catkin clean default
+catkin build default
+source devel/setup.bash
+
 # initialize launch file
 dt-launchfile-init
 

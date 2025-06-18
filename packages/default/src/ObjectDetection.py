@@ -6,18 +6,19 @@ import cv2
 import numpy as np
 import rospkg
 import rospy
+import torch
+import yaml
 from cv_bridge import CvBridge
+from default.msg import BoundingBox, BoundingBoxArray
 from duckietown.dtros import DTROS, NodeType
-from geometry_msgs.msg import Pose2D
 from sensor_msgs.msg import CompressedImage
 from ultralytics import YOLO
-from vision_msgs.msg import Detection2D, Detection2DArray, ObjectHypothesisWithPose
 
 
 class ShowCameraNode(DTROS):
     """
     DTROS-Node, das das Kamerabild abonniert, YOLO-Detections ausführt
-    und die Ergebnisse als Bild sowie als Detection2DArray publiziert.
+    und die Ergebnisse als Bild sowie als BoundingBoxArray publiziert.
     """
 
     def __init__(self, node_name):
@@ -30,61 +31,98 @@ class ShowCameraNode(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.bridge = CvBridge()
 
+        # Device bestimmen (GPU oder CPU)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        rospy.loginfo(f"Verwendetes Gerät: {self.device}")
+
         # YOLO-Modell laden
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
         yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_obj_dect_20250610.pt")
+
         if os.path.exists(yolo_model_path):
             self.model = YOLO(yolo_model_path)
-            rospy.loginfo(f"YOLO-Modell geladen: {yolo_model_path}")
+            self.model.to(self.device)
+            rospy.loginfo(f"YOLO-Modell geladen: {yolo_model_path} auf Gerät: {self.device}")
         else:
             rospy.logerr(f"YOLO-Modell nicht gefunden: {yolo_model_path}")
             self.model = None
 
-        # Publisher für Detections
-        self.pub_all_masks = rospy.Publisher(f"/{self._vehicle_name}/detect/objects", Detection2DArray, queue_size=1)
+        # Publisher für BoundingBoxes
+        self.pub_boxes = rospy.Publisher(f"/{self._vehicle_name}/detect/bounding_boxes", BoundingBoxArray, queue_size=1)
 
         # Bild-Subscriber
         self.sub_image = rospy.Subscriber(self._camera_topic, CompressedImage, self.cb_display_image, queue_size=1)
         rospy.loginfo(f"[{self.node_name}] Abonniert: {self._camera_topic}")
 
+        self.counter = 0
+
+        self.config = self._load_config()
+        if self.config:
+            self.Xth_frame = self.config["processing"]["use_every_Xth_frame_2"]
+        else:
+            self.Xth_frame = 1  # Fallback
+
+    def _load_config(self):
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("default")
+        config_path = os.path.join(package_path, "config", "processing_params.yaml")
+
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    config = yaml.safe_load(f)
+                    rospy.loginfo(f"Loaded configuration from {config_path}")
+                    return config
+            else:
+                rospy.logerr(f"Config file not found: {config_path}")
+                return None
+        except Exception as e:
+            rospy.logerr(f"Error loading config file: {e}.")
+            return None
+
     def cb_display_image(self, image_msg):
+        if self.counter % self.Xth_frame != 0:
+            self.counter += 1
+            return
+        else:
+            self.counter += 1
+
         try:
             # ROS CompressedImage zu OpenCV-Bild
             np_arr = np.frombuffer(image_msg.data, np.uint8)
             cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
-            detection_array_msg = Detection2DArray()
-            detection_array_msg.header = image_msg.header
+            bbox_array_msg = BoundingBoxArray()
+            bbox_array_msg.header = image_msg.header
 
             if self.model is not None:
-                results = self.model(cv_image)
+                results = self.model(cv_image, device=self.device)
 
                 for box, conf, cls in zip(results[0].boxes.xyxy, results[0].boxes.conf, results[0].boxes.cls):
-                    x1, y1, x2, y2 = map(int, box)
-                    label = self.model.names[int(cls)]
-                    score = float(conf)
+                    x1, y1, x2, y2 = map(float, box)
+                    class_id = int(cls)
+                    confidence = float(conf)
+                    label = self.model.names[class_id]
 
                     # Bounding Box zeichnen
-                    cv2.rectangle(cv_image, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    cv2.putText(cv_image, f"{label} {score:.2f}", (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    cv2.rectangle(cv_image, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
+                    cv2.putText(cv_image, f"{label} {confidence:.2f}", (int(x1), int(y1) - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-                    # ROS Detection2D Nachricht bauen
-                    detection = Detection2D()
-                    detection.bbox.center.x = (x1 + x2) / 2.0
-                    detection.bbox.center.y = (y1 + y2) / 2.0
-                    detection.bbox.size_x = x2 - x1
-                    detection.bbox.size_y = y2 - y1
+                    # BoundingBox Nachricht erstellen
+                    bbox_msg = BoundingBox()
+                    bbox_msg.header = image_msg.header
+                    bbox_msg.x_min = x1
+                    bbox_msg.y_min = y1
+                    bbox_msg.x_max = x2
+                    bbox_msg.y_max = y2
+                    bbox_msg.class_id = class_id
+                    bbox_msg.confidence = confidence
 
-                    hypothesis = ObjectHypothesisWithPose()
-                    hypothesis.id = int(cls)  # numerische Klasse
-                    hypothesis.score = score
+                    bbox_array_msg.boxes.append(bbox_msg)
 
-                    detection.results.append(hypothesis)
-                    detection_array_msg.detections.append(detection)
-
-                # Publish
-                self.pub_all_masks.publish(detection_array_msg)
+                # Publish Bounding Boxes
+                self.pub_boxes.publish(bbox_array_msg)
 
             # Fensteranzeige
             window_name = f"{self._vehicle_name} Camera + YOLO"

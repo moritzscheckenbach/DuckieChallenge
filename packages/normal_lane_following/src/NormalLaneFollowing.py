@@ -32,7 +32,7 @@ class NormalLaneFollowing(DTROS):
         """
         self.node_active = False  # Flag to check if the node is active
         self._mode_topic = f"/{self._vehicle_name}/current_mode"
-        self.sub_modus = rospy.Subscriber(self._camera_topic, Int32MultiArray, self.ActivateNode, queue_size=1)
+        self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.ActivateNode, queue_size=1)
 
         # Load configuration parameters
         self.config = self._load_config()
@@ -48,8 +48,6 @@ class NormalLaneFollowing(DTROS):
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
-        self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
-
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
         self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
@@ -57,6 +55,7 @@ class NormalLaneFollowing(DTROS):
         self.counter = 0
         self.bridge = CvBridge()
 
+        self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
 
     def ActivateNode(self, msg):

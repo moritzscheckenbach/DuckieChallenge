@@ -1,38 +1,43 @@
+#!/usr/bin/env python3
+
 import os
 
 import rospy
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
-from std_msgs.msg import Float64, Int32
-from switch_control_node import ControlType
+from std_msgs.msg import Float64, Int32, Int32MultiArray
 
 
 class ControlLaneNode(DTROS):
     def __init__(self, node_name):
         super(ControlLaneNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
-        self.enable = False
         self._vehicle_name = os.environ["VEHICLE_NAME"]
+
+        self._mode_topic = f"/{self._vehicle_name}/current_mode"
+        self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.cbControlMode, queue_size=1)
+
         twist_topic = f"/{self._vehicle_name}/car_cmd_switch_node/cmd"
         self.pub_cmd_vel = rospy.Publisher(twist_topic, Twist2DStamped, queue_size=1)
 
         self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cbFollowLane, queue_size=1)
-        self.sub_control = rospy.Subscriber(f"/{self._vehicle_name}/switch/control", Int32, self.cbControl, queue_size=1)
+
+        self._node_active = False
 
         rospy.on_shutdown(self.fnShutDown)
 
-    def cbControl(self, msg):
-        if msg.data == ControlType.Lane.value:
-            self.enable = True
-
+    def cbControlMode(self, msg: Int32MultiArray):
+        if msg.data[4] == 1:
+            self._node_active = True
+            rospy.loginfo(f"{self._vehicle_name}: DuckieCenterCheck is now active")
         else:
-            self.enable = False
+            self._node_active = False
 
     def cbFollowLane(self, desired_center):
 
-        print(f"received message. enabled : {self.enable}")
+        print(f"received message. enabled : {self._node_active}")
 
-        if not self.enable:
+        if not self._node_active:
             return
 
         center = desired_center.data
