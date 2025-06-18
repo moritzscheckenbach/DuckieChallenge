@@ -42,7 +42,7 @@ class AdminNode:
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
         # Sub auf Event, z. B. Duckie erkannt
-        rospy.Subscriber(f"/{self._vehicle_name}/duckie_detected", Bool, self._on_duckie_detected)
+        rospy.Subscriber(f"/{self._vehicle_name}/detected/in_region", Bool, self._on_duckie_detected)
         rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_redstop_detected)
         rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_detected", Bool, self._on_parkinglot_detected)
 

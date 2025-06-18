@@ -27,6 +27,8 @@ rosrun normal_lane_following OppositeLaneFollowing.py &
 rosrun normal_lane_following DuckieCenterCheck.py &
 rosrun duckie_control PID_control_lane_node.py &
 rosrun intersection_handling intersection_handling_node.py &
+rosrun intersection_handling check_red_stop_node.py &
+rosrun intersection_handling stop_at_intersection_node.py &
 rosrun duckie_control switch_control_node.py &
 
 

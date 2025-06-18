@@ -218,24 +218,6 @@ class IntersectionHandlingNode(DTROS):
     def turn(self):
         self._state = IntersectionHandlingNodeState.EXECUTING_ACTION
 
-        match self._intersection_direction:
-            case IntersectionDirection.LEFT:
-                rospy.loginfo("Turning left")
-                # TODO: Go straight for a bit, then turn left
-            case IntersectionDirection.STRAIGHT:
-                rospy.loginfo("Going straight")
-                # TODO: Go straight for a defined distance
-            case IntersectionDirection.RIGHT:
-                rospy.loginfo("Turning right")
-                # TODO: Go straight for a bit, then turn right
-
-        twist = Twist2DStamped(v=v, omega=-pid_output)
-        rospy.logwarn(f"moving {v} with omega {-pid_output} at error {current_error}")
-        self.pub_cmd_vel.publish(twist)
-
-    def turn(self):
-        self._state = IntersectionHandlingNodeState.EXECUTING_ACTION
-
         # Create message for velocity commands
         cmd_msg = Twist2DStamped()
 
