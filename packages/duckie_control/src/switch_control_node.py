@@ -2,48 +2,37 @@
 
 import os
 from collections import defaultdict
+from enum import Enum
 
 import rospy
-from std_msgs.msg import Bool, String
-
-# Dummy: Liste aller Nodes, die existieren (hier nur symbolisch; bitte ersetzen)
-ALL_NODES = [
-    # "LaneSegmentation",
-    # "ObjectDetection",
-    "NormalLaneFollowing",  # 1
-    "DuckieCheckCenter",  # 2
-    "OppositeLaneFollowing",  # 3
-    "DuckieCheckRight",  # 4
-    "PIDControlLane",  # 5
-    "IntersectionDetection",  # 6
-    "StopAtIntersection",  # 7
-    "IntersectionHandling",  # 8
-    "ParkingLotDetection",  # 9
-    "CheckForDotted",  # 10
-    "CheckForNoDotted",  # 11
-    "ParkingManager",  # 12
-]
+from std_msgs.msg import Bool, Int32MultiArray, String
 
 
-# Definierte Systemmodi und die jeweils aktiven Nodes
-MODE_CONFIG = {
-    "NormalLaneFollowing": [1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0],
-    "AvoidDuckies": [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],
-    "StoppingAtIntersection": [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],
-    "IntersectionHandling": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-    "SearchForParkingLot": [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
-    "StopAtParkingLot": [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0],
-    "ParkingManager": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-}
+class ControlMode(Enum):
+    # ALL_NODES = [
+    #     # "LaneSegmentation",
+    #     # "ObjectDetection",
+    #     "NormalLaneFollowing",  # 1
+    #     "DuckieCheckCenter",  # 2
+    #     "OppositeLaneFollowing",  # 3
+    #     "DuckieCheckRight",  # 4
+    #     "PIDControlLane",  # 5
+    #     "IntersectionDetection",  # 6
+    #     "StopAtIntersection",  # 7
+    #     "IntersectionHandling",  # 8
+    #     "ParkingLotDetection",  # 9
+    #     "CheckForDotted",  # 10
+    #     "CheckForNoDotted",  # 11
+    #     "ParkingManager",  # 12
+    # ]
 
-
-class AdminStatus:
-    """
-    Einfache Datenstruktur, simuliert eine benutzerdefinierte Message
-    """
-
-    def __init__(self):
-        self.node_status = defaultdict(bool)  # z. B. {"LaneSegmentation": True, "...": False}
+    NormalLaneFollowing = [1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0]
+    AvoidDuckies = [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
+    StoppingAtIntersection = [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]
+    IntersectionHandling = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
+    SearchForParkingLot = [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
+    StopAtParkingLot = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]
+    ParkingManager = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]
 
 
 class AdminNode:
@@ -52,60 +41,68 @@ class AdminNode:
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
-        self.current_mode = "normal_drive"
-        self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", String, queue_size=1, latch=True)
-        # self.bool_pub = rospy.Publisher(f"/{self._vehicle_name}/admin_node_enable_map", Bool, queue_size=1, latch=True)
-
-        # Placeholder für Bool-Map pro Node
-        self.node_map_pub = rospy.Publisher(f"/{self._vehicle_name}/admin_node_states", String, queue_size=1, latch=True)
-
         # Sub auf Event, z. B. Duckie erkannt
-        rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_detected", Bool, self._on_duckiebot_detected)
-        rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_duckiebot_detected)
+        rospy.Subscriber(f"/{self._vehicle_name}/duckie_detected", Bool, self._on_duckie_detected)
+        rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_redstop_detected)
+        rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_detected", Bool, self._on_parkinglot_detected)
 
-        rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_avoided", Bool, self._back_to_lane_following)
-        rospy.Subscriber(f"/{self._vehicle_name}/ducie_avoided", Bool, self._back_to_lane_following)
+        rospy.Subscriber(f"/{self._vehicle_name}/duckie_avoided", Bool, self._back_to_lane_following)
         rospy.Subscriber(f"/{self._vehicle_name}/intersection_handled", Bool, self._back_to_lane_following)
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_parked", Bool, self._back_to_lane_following)
+        rospy.Subscriber(f"/{self._vehicle_name}/vehicle_stopped", Bool, self._go_to_intersection_handling)
+        rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_found", Bool, self._go_to_stop_at_parking_lot)
+        rospy.Subscriber(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, self._go_to_parking_manager)
 
-        # Regelmäßige FSM-Ausführung
-        self.timer = rospy.Timer(rospy.Duration(1.0), self._publish_status)
+        self.current_mode = ControlMode.NormalLaneFollowing
+        self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
+        self._publish_mode()
 
     def _on_duckie_detected(self, msg):
-        if msg.data and self.current_mode != "avoid_obstacle":
-            rospy.loginfo("Duckie erkannt! Wechsel in 'avoid_obstacle'-Modus")
-            self.current_mode = "avoid_obstacle"
+        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
+            rospy.loginfo("Duckie erkannt! Wechsel in 'AvoidDuckies'-Modus")
+            self.current_mode = ControlMode.AvoidDuckies
+            self._publish_mode()
 
-    def _on_duckiebot_detected(self, msg):
-        if msg.data and self.current_mode != "idle":
-            rospy.loginfo("Duckiebot erkannt! Wechsel in 'idle'-Modus")
-            self.current_mode = "duckiebot_handling"
+    def _on_redstop_detected(self, msg):
+        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
+            rospy.loginfo("Redstop erkannt! Wechsel in 'StoppingAtIntersection'-Modus")
+            self.current_mode = ControlMode.StoppingAtIntersection
+            self._publish_mode()
 
-    def _on_parking_lot_detected(self, msg):
-        if msg.data and self.current_mode != "idle":
-            rospy.loginfo("Parkplatz erkannt! Wechsel in 'idle'-Modus")
-            self.current_mode = "parking"
+    def _go_to_intersection_handling(self, msg):
+        if msg.data and self.current_mode == ControlMode.StoppingAtIntersection:
+            rospy.loginfo("Fahrzeug gestoppt! Wechsel in 'IntersectionHandling'-Modus")
+            self.current_mode = ControlMode.IntersectionHandling
+            self._publish_mode()
 
-    def _on_intersection_detected(self, msg):
-        if msg.data and self.current_mode != "idle":
-            rospy.loginfo("Kreuzung erkannt! Wechsel in 'idle'-Modus")
-            self.current_mode = "intersection_handling"
+    def _on_parkinglot_detected(self, msg):
+        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
+            rospy.loginfo("Parkplatz erkannt! Wechsel in 'SearchForParkingLot'-Modus")
+            self.current_mode = ControlMode.SearchForParkingLot
+            self._publish_mode()
+
+    def _go_to_stop_at_parking_lot(self, msg):
+        if msg.data and self.current_mode == ControlMode.SearchForParkingLot:
+            rospy.loginfo("Parkplatz gefunden! Wechsel in 'StopAtParkingLot'-Modus")
+            self.current_mode = ControlMode.StopAtParkingLot
+            self._publish_mode()
+
+    def _go_to_parking_manager(self, msg):
+        if msg.data and self.current_mode == ControlMode.StopAtParkingLot:
+            rospy.loginfo("Am Parkplatz gestoppt! Wechsel in 'ParkingManager'-Modus")
+            self.current_mode = ControlMode.ParkingManager
+            self._publish_mode()
 
     def _back_to_lane_following(self, msg):
-        if self.current_mode != "normal_drive" and msg.data == True:
-            rospy.loginfo("Zurück zum 'normal_drive'-Modus")
-            self.current_mode = "normal_drive"
+        if msg.data and self.current_mode != ControlMode.NormalLaneFollowing:
+            rospy.loginfo("Zurück zum 'NormalLaneFollowing'-Modus")
+            self.current_mode = ControlMode.NormalLaneFollowing
+            self._publish_mode()
 
-    def _publish_status(self, event):
-        active_nodes = MODE_CONFIG.get(self.current_mode, [])
-        rospy.loginfo(f"[AdminNode] Modus: {self.current_mode}, Aktive Nodes: {active_nodes}")
-
-        # Veröffentliche simplen String-Modus
-        self.status_pub.publish(self.current_mode)
-
-        # Optional: Veröffentlichung als bool-Map pro Node
-        node_status_str = "".join([f"{name}:{str(name in active_nodes).lower()}," for name in ALL_NODES])
-        self.node_map_pub.publish(node_status_str)
+    def _publish_mode(self):
+        msg = Int32MultiArray()
+        msg.data = self.current_mode.value
+        self.status_pub.publish(msg)
 
 
 if __name__ == "__main__":
