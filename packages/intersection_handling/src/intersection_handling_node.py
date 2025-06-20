@@ -51,7 +51,7 @@ class IntersectionHandlingNode(DTROS):
         # Subscribers
         self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
         # self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cblane, queue_size=1)
-        self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", String, self.cbmasks, queue_size=1)
+        self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.cbmasks, queue_size=1)
 
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
@@ -68,8 +68,15 @@ class IntersectionHandlingNode(DTROS):
             self._node_active = False
 
     def cbmasks(self, msg: MultiMaskGroups):
-        if self._node_active == True:
+        if not self._node_active:
+            return
+
+        try:
             self.red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
+            if not self.red_masks:
+                rospy.logwarn_throttle(1.0, f"{self._vehicle_name}: No red masks received")
+        except Exception as e:
+            rospy.logerr(f"{self._vehicle_name}: Error processing masks: {e}")
 
     def classifyIntersectionType(self):
         self._state = IntersectionHandlingNodeState.CLASSIFYING_INTERSECTION

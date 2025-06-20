@@ -60,7 +60,7 @@ class StopAtIntersection(DTROS):
                 self._stop_start_time = None
             self._node_active = False
 
-    def handle_red_stop(self, msg):
+    def handle_red_stop(self, msg: Bool):
         """Handle red stop detection"""
         if not self._node_active:
             return
