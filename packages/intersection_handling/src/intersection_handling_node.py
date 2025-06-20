@@ -103,10 +103,7 @@ class IntersectionHandlingNode(DTROS):
             # Check if we have valid masks
             if left_mask is None or straight_mask is None or right_mask is None:
                 rospy.logwarn(f"One or more direction masks not found. Using default behavior.")
-                # Default to using all directions
-                left_available = False
-                straight_available = False
-                right_available = False
+
             else:
                 # Process each red line mask
                 for red_mask in self.red_masks:
@@ -130,10 +127,6 @@ class IntersectionHandlingNode(DTROS):
 
         except Exception as e:
             rospy.logerr(f"Error processing direction masks: {e}")
-            # Default to using all directions
-            left_available = False
-            straight_available = False
-            right_available = False
 
         # Determine intersection type based on available directions
         intersection_type = None
