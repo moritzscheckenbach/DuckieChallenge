@@ -2,3 +2,6 @@
 # NOTE: only place non-Duckietown libraries here; pin versions only if necessary
 ultralytics
 numpy
+torch
+torchvision
+opencv-python

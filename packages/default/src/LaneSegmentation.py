@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import rospkg
 import rospy
+import torch
 import yaml
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
@@ -41,6 +42,14 @@ class LaneSegmentation(DTROS):
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
         yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250610.pt")
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        if self.device.type == "cuda":
+            rospy.loginfo(f"GPU verfügbar: {torch.cuda.get_device_name(0)}")
+            rospy.loginfo(f"CUDA Version: {torch.version.cuda}")
+        else:
+            rospy.logwarn("CUDA nicht verfügbar! Verwende CPU - Performance wird beeinträchtigt")
+
         # Check if the model file exists, otherwise show a warning
         if os.path.exists(yolo_model_path):
             self._model = YOLO(yolo_model_path)

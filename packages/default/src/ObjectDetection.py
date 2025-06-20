@@ -33,7 +33,11 @@ class ShowCameraNode(DTROS):
 
         # Device bestimmen (GPU oder CPU)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        rospy.loginfo(f"Verwendetes Gerät: {self.device}")
+        if self.device.type == "cuda":
+            rospy.loginfo(f"GPU verfügbar: {torch.cuda.get_device_name(0)}")
+            rospy.loginfo(f"CUDA Version: {torch.version.cuda}")
+        else:
+            rospy.logwarn("CUDA nicht verfügbar! Verwende CPU - Performance wird beeinträchtigt")
 
         # YOLO-Modell laden
         rospack = rospkg.RosPack()

@@ -15,6 +15,11 @@ source devel/setup.bash
 # initialize launch file
 dt-launchfile-init
 
+# Check CUDA availability
+echo "Checking CUDA availability..."
+python3 -c "import torch; print('CUDA Available:', torch.cuda.is_available()); print('CUDA Device Count:', torch.cuda.device_count()); print('CUDA Device Name:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'N/A');" || echo "Error checking CUDA"
+
+
 # YOUR CODE BELOW THIS LINE
 # ----------------------------------------------------------------------------
 
