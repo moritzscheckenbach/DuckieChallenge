@@ -32,15 +32,16 @@ python3 -c "import torch; print('CUDA Available:', torch.cuda.is_available()); p
 
 
 rosrun default LaneSegmentation.py &
-rosrun default ObjectDetection.py &
+# rosrun default ObjectDetection.py &
 rosrun normal_lane_following NormalLaneFollowing.py &
-rosrun normal_lane_following OppositeLaneFollowing.py &
-rosrun normal_lane_following DuckieCenterCheck.py &
+# rosrun normal_lane_following OppositeLaneFollowing.py &
+# rosrun normal_lane_following DuckieCenterCheck.py &
 rosrun duckie_control PID_control_lane_node.py &
 rosrun intersection_handling intersection_handling_node.py &
 rosrun intersection_handling check_red_stop_node.py &
 rosrun intersection_handling stop_at_intersection_node.py &
-rosrun duckie_control switch_control_node.py &
+# rosrun duckie_control switch_control_node.py &
+rosrun duckie_control challenge_test_publisher.py &
 
 
 
@@ -52,7 +53,6 @@ rosrun duckie_control switch_control_node.py &
 #dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/self_detect_lane_node.py" 
 #dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/camera_reader_node.py" 
 #dt-exec python3 "${DT_REPO_PATH}/packages/followlane/src/yolo_lane_detection.py"
-
 
 
 
