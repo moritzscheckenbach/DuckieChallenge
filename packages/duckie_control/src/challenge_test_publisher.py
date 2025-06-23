@@ -29,7 +29,7 @@ class ChallengeTestPublisher(DTROS):  # FIX: Add inheritance from DTROS
         self.pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
 
         # Default challenge mode
-        self.current_mode = ControlMode.IntersectionHandling
+        self.current_mode = ControlMode.StoppingAtIntersection
 
         # Publishing rate (Hz)
         self.rate = rospy.Rate(10)

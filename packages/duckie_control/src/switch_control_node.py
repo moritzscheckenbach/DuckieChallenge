@@ -28,7 +28,7 @@ class ControlMode(Enum):
 
     NormalLaneFollowing = [1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0]
     AvoidDuckies = [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
-    StoppingAtIntersection = [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0]
+    StoppingAtIntersection = [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
     IntersectionHandling = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0]
     SearchForParkingLot = [1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0]
     StopAtParkingLot = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]

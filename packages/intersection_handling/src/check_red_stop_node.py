@@ -63,22 +63,23 @@ class CheckRedStop(DTROS):
         """Activate or deactivate node based on control mode"""
         if msg.data[5] == 1:
             if not self._node_active:
-                rospy.loginfo(f"{self._vehicle_name}: RedStopDetectionNode activated")
+                rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode activated")
             self._node_active = True
         else:
             if self._node_active:
-                rospy.loginfo(f"{self._vehicle_name}: RedStopDetectionNode deactivated")
+                rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode deactivated")
             self._node_active = False
 
     def check_red_stop(self, msg):
         """Process incoming masks and check for red stop line overlap with ROI"""
-        if not self._node_active or not self.config:
+        if not self._node_active:
             return
 
         red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
 
         if not red_masks:
             self.pub_red_stop.publish(Bool(data=False))
+            rospy.logwarn(f"{self._vehicle_name}: No red masks received")
             return
 
         image_height = red_masks[0].shape[0]
