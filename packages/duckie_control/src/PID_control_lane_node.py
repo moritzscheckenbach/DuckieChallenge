@@ -29,9 +29,10 @@ class ControlLaneNode(DTROS):
     def cbControlMode(self, msg: Int32MultiArray):
         if msg.data[4] == 1:
             self._node_active = True
-            rospy.loginfo(f"{self._vehicle_name}: PID control is now active")
+            rospy.logwarn(f"{self._vehicle_name}: PID control is now active")
         else:
             self._node_active = False
+            self.fnShutDown()
 
     def cbFollowLane(self, desired_center):
 
@@ -52,13 +53,13 @@ class ControlLaneNode(DTROS):
         """
 
         # PID Parameters
-        Kp = 4.00  # Proportional gain
-        Ki = 0.07  # Integral gain
-        Kd = 4.50  # Derivative gain
-
-        # Kp = 5.00  # Proportional gain
+        # Kp = 4.00  # Proportional gain
         # Ki = 0.07  # Integral gain
-        # Kd = 1.00  # Derivative gain
+        # Kd = 4.50  # Derivative gain
+
+        Kp = 5.00  # Proportional gain
+        Ki = 0.07  # Integral gain
+        Kd = 1.00  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):

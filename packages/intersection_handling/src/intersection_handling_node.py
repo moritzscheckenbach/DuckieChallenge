@@ -10,7 +10,6 @@ import numpy as np
 import rospkg
 import rospy
 from cv_bridge import CvBridge
-from duckie_control.src.switch_control_node import ControlType
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
 from normal_lane_following.msg import MultiMaskGroups
@@ -55,14 +54,14 @@ class IntersectionHandlingNode(DTROS):
 
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
-        self.pub_intersection_done = rospy.Publisher(f"/{self._vehicle_name}/intersection/done", Bool, queue_size=1)
+        self.pub_intersection_done = rospy.Publisher(f"/{self._vehicle_name}/intersection_handled", Bool, queue_size=1)
 
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode initialized with state: {self._state}")
 
     def cbControlMode(self, msg: Int32MultiArray):
         if msg.data[7] == 1:
             self._node_active = True
-            rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode is now active")
+            rospy.logwarn(f"{self._vehicle_name}: IntersectionHandlingNode is now active")
             self.classifyIntersectionType()
         else:
             self._node_active = False
@@ -222,7 +221,7 @@ class IntersectionHandlingNode(DTROS):
         cmd_msg = Twist2DStamped()
 
         # Define parameters for each turn type
-        straight_time = 3.0  # Time to go straight (seconds)
+        straight_time = 1.2  # Time to go straight (seconds)
         turn_time = 2.0  # Time to execute turn (seconds)
         v_straight = 0.3  # Linear velocity for straight (m/s)
         v_turn = 0.2  # Linear velocity during turn (m/s)

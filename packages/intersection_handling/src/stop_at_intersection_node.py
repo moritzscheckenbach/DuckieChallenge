@@ -24,16 +24,11 @@ class StopAtIntersection(DTROS):
         self._mode_topic = f"/{self._vehicle_name}/current_mode"
         self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.activate_node, queue_size=1)
 
-        # Subscribe to red stop detection
-        self.sub_red_stop = rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self.handle_red_stop, queue_size=1)
-
         # Publishers
         # Publisher for velocity commands
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         # Publisher for vehicle stopped signal
         self.pub_vehicle_stopped = rospy.Publisher(f"/{self._vehicle_name}/vehicle_stopped", Bool, queue_size=1)
-        # Publisher for handling completed signal
-        self.pub_stop_handled = rospy.Publisher(f"/{self._vehicle_name}/intersection_handled", Bool, queue_size=1)
 
         # Timer for checking stop state
         self.timer = rospy.Timer(rospy.Duration(0.1), self.check_stop_state)
@@ -41,7 +36,7 @@ class StopAtIntersection(DTROS):
         # Stop wait duration (seconds)
         self.stop_wait_duration = 2.0
 
-        rospy.loginfo(f"{self._vehicle_name}: RedStopHandlingNode initialized")
+        rospy.loginfo(f"{self._vehicle_name}: StoppingAtIntersectionNode initialized")
 
         rospy.on_shutdown(self.on_shutdown)
 
@@ -50,17 +45,18 @@ class StopAtIntersection(DTROS):
         # Check if we're in stopping at intersection mode (index 6)
         if msg.data[6] == 1:
             if not self._node_active:
-                rospy.loginfo(f"{self._vehicle_name}: RedStopHandlingNode activated")
+                rospy.logwarn(f"{self._vehicle_name}: StoppingAtIntersectionNode activated")
             self._node_active = True
+            self.stop_at_red_stop(msg)
         else:
             if self._node_active:
-                rospy.loginfo(f"{self._vehicle_name}: RedStopHandlingNode deactivated")
+                rospy.loginfo(f"{self._vehicle_name}: StoppingAtIntersectionNode deactivated")
                 # Reset state if we're deactivated
                 self._stopping_in_progress = False
                 self._stop_start_time = None
             self._node_active = False
 
-    def handle_red_stop(self, msg: Bool):
+    def stop_at_red_stop(self, msg: Bool):
         """Handle red stop detection"""
         if not self._node_active:
             return
@@ -73,9 +69,6 @@ class StopAtIntersection(DTROS):
 
             # Send stop command
             self.stop_vehicle()
-
-            # Signal that vehicle is stopped
-            self.pub_vehicle_stopped.publish(Bool(data=True))
 
     def check_stop_state(self, event):
         """Check if we've waited long enough at the stop"""
@@ -90,7 +83,7 @@ class StopAtIntersection(DTROS):
             rospy.loginfo(f"{self._vehicle_name}: Stop wait completed after {elapsed:.2f} seconds")
 
             # Signal that intersection handling is done
-            self.pub_stop_handled.publish(Bool(data=True))
+            self.pub_vehicle_stopped.publish(Bool(data=True))
 
             # Reset state
             self._stopping_in_progress = False

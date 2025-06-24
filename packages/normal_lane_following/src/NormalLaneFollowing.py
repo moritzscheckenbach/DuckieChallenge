@@ -48,6 +48,10 @@ class NormalLaneFollowing(DTROS):
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
+        self.red_stop_roi_window_height = self.config["red_stop"]["window_height"]
+        self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
+        self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
+
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
         self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
@@ -64,10 +68,9 @@ class NormalLaneFollowing(DTROS):
         """
         # if msg.data[1] == ControlMode.NORMAL_DRIVE.value:
         if msg.data[0] == 1:
-            rospy.loginfo("Normal Lane Following Node is active.")
+            rospy.logwarn("Normal Lane Following Node is active.")
             self.node_active = True
         else:
-            rospy.loginfo("Normal Lane Following Node is inactive.")
             self.node_active = False
 
     def _load_config(self):

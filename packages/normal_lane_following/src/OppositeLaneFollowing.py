@@ -62,10 +62,9 @@ class OppositeLaneFollowingLeft(DTROS):
     def activate_node(self, msg):
         # Activate/deactivate based on control mode (True means left-lane mode)
         if msg.data[2] == 1:
-            rospy.loginfo("Left-Lane Following Node is active.")
+            rospy.logwarn("Left-Lane Following Node is active.")
             self.node_active = True
         else:
-            rospy.loginfo("Left-Lane Following Node is inactive.")
             self.node_active = False
 
     def _load_config(self):

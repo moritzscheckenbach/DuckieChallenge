@@ -1,7 +1,7 @@
 # Lane detection parameters
 processing:
   use_every_Xth_frame: 5  # Process every nth frame
-  use_every_Xth_frame_2: 1000
+  use_every_Xth_frame_2: 11
   crop_height_percentage: 0.375  # Crop 37.5% from the top
   roi_height: 100  # Height for lane center extraction (px from top)
   
@@ -17,4 +17,13 @@ red_stop:
   window_height: 80  # Height of the window (px)
   window_width: 640  # Width of the window (px)
   window_bottom_offset: 0  # Offset from bottom (px)
-  detection_threshold: 50  # Percentage threshold for stop detection
+  detection_threshold: 35  # Percentage threshold for stop detection
+
+# CenterCheckDuckie
+center_check_duckie:
+  target_class_id: 1
+  region:
+    x_min: 100
+    y_min: 250
+    x_max: 450
+    y_max: 480

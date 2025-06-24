@@ -66,8 +66,6 @@ class CheckRedStop(DTROS):
                 rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode activated")
             self._node_active = True
         else:
-            if self._node_active:
-                rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode deactivated")
             self._node_active = False
 
     def check_red_stop(self, msg):
@@ -79,7 +77,7 @@ class CheckRedStop(DTROS):
 
         if not red_masks:
             self.pub_red_stop.publish(Bool(data=False))
-            rospy.logwarn(f"{self._vehicle_name}: No red masks received")
+            rospy.loginfo(f"{self._vehicle_name}: No red masks received")
             return
 
         image_height = red_masks[0].shape[0]
