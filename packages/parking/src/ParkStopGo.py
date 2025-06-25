@@ -29,7 +29,7 @@ class ParkingManager(DTROS):
 
         self.pub_in_region = rospy.Publisher(f"/{self._vehicle_name}/duckiebot_parked", Bool, queue_size=1)
 
-        rospy.loginfo(f"[DetectionCheckerNode] Läuft. Überwacht Klasse {self.target_class_id} im Bereich {self.region}")
+        rospy.loginfo(f"[DetectionCheckerNode] Läuft.")
 
     def _load_config(self):
         rospack = rospkg.RosPack()

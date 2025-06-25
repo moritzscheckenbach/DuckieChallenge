@@ -24,7 +24,7 @@ center_check_duckie:
   target_class_id: 1
   region:
     x_min: 100
-    y_min: 250
+    y_min: 220
     x_max: 450
     y_max: 480
 
@@ -32,9 +32,9 @@ center_check_duckie:
 right_check_duckie:
   target_class_id: 1
   region:
-    x_min: 100
-    y_min: 250
-    x_max: 450
+    x_min: 450
+    y_min: 0
+    x_max: 640
     y_max: 480
 
 # RichtCheckDuckie

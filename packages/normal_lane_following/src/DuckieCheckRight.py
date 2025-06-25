@@ -30,6 +30,10 @@ class DetectionCheckerRightNode(DTROS):
         self.pub_in_region = rospy.Publisher(f"/{self._vehicle_name}/detect/not_in_region", Bool, queue_size=1)
 
         rospy.loginfo(f"[DetectionCheckerNode] Läuft. Überwacht Klasse {self.target_class_id} im Bereich {self.region}")
+        self.timer_init = 4.5  # seconds
+        self.timer_value = self.timer_init
+        # Create timer that decrements timer_value every second
+        self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)
 
     def _load_config(self):
         rospack = rospkg.RosPack()
@@ -60,8 +64,6 @@ class DetectionCheckerRightNode(DTROS):
         # rospy.logwarn(f"Received detection message with {msg.boxes} boxes.")
 
         if self._node_active == True:
-            not_in_region = False
-
             for detection in msg.boxes:
                 if detection.class_id == self.target_class_id:
                     x_min, y_min = detection.x_min, detection.y_min
@@ -70,11 +72,18 @@ class DetectionCheckerRightNode(DTROS):
                     if not (self.region["x_min"] <= x_min <= self.region["x_max"] and self.region["y_min"] <= y_min <= self.region["y_max"]) or (
                         self.region["x_min"] <= x_max <= self.region["x_max"] and self.region["y_min"] <= y_max <= self.region["y_max"]
                     ):
-                        not_in_region = True
-                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt im Bereich: {self.region}")
                         break
+                    else:
+                        self.timer_value = self.timer_init
 
-            self.pub_in_region.publish(Bool(data=not_in_region))
+    def timer_callback(self, event):
+        if self._node_active:
+            self.timer_value = self.timer_value - 0.1
+            rospy.logwarn(f"Timer value: {self.timer_value}")
+            if self.timer_value <= 0.0:
+                rospy.logwarn("Timer expired - duckie has left the region")
+                self.pub_in_region.publish(True)
+                self.timer_value = self.timer_init
 
 
 if __name__ == "__main__":

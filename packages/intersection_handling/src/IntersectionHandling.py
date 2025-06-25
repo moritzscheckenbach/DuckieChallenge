@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import rospkg
 import rospy
+import yaml
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
@@ -45,18 +46,40 @@ class IntersectionHandlingNode(DTROS):
         self._intersection_direction = None
         self.red_masks = []
 
+        self.config = self._load_config()
+        self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
+
         self.bridge = CvBridge()
 
         # Subscribers
         self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
         # self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cblane, queue_size=1)
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.cbmasks, queue_size=1)
+        self.sub_image = rospy.Subscriber(f"/{self._vehicle_name}/intersection/img", CompressedImage, self.cbimage, queue_size=1)
 
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         self.pub_intersection_done = rospy.Publisher(f"/{self._vehicle_name}/intersection_handled", Bool, queue_size=1)
 
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode initialized with state: {self._state}")
+
+    def _load_config(self):
+        rospack = rospkg.RosPack()
+        package_path = rospack.get_path("default")  # Name deines Packages!
+        config_path = os.path.join(package_path, "config", "processing_params.yaml")
+
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    config = yaml.safe_load(f)
+                    rospy.loginfo(f"Loaded configuration from {config_path}")
+                    return config
+            else:
+                rospy.logerr(f"Config file not found: {config_path}")
+                return None
+        except Exception as e:
+            rospy.logerr(f"Error loading config file: {e}.")
+            return None
 
     def cbControlMode(self, msg: Int32MultiArray):
         if msg.data[7] == 1:
@@ -77,8 +100,32 @@ class IntersectionHandlingNode(DTROS):
         except Exception as e:
             rospy.logerr(f"{self._vehicle_name}: Error processing masks: {e}")
 
+    def cbimage(self, msg: CompressedImage):
+        try:
+            # Convert compressed image to OpenCV format
+            cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding="bgr8")
+            self.img = self.crop_img(cv_image)  # Crop the image if needed
+            # Process the image if needed (e.g., visualization)
+            rospy.logwarn(f"{self._vehicle_name}: Received image")
+        except Exception as e:
+            rospy.logerr(f"{self._vehicle_name}: Error processing image: {e}")
+
+    def crop_img(self, img):
+        img = img.copy()
+        h, w = img.shape[:2]
+        crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
+        img = img[crop_height:, :]
+        self.image_height = img.shape[0]
+        rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
+
+        return img
+
+        # NOTE: If needed place bird's eye view transformation here
+
     def classifyIntersectionType(self):
         self._state = IntersectionHandlingNodeState.CLASSIFYING_INTERSECTION
+
+        self.visualizeIntersection()
 
         # Initialize intersection directions
         left_available = False
@@ -105,7 +152,9 @@ class IntersectionHandlingNode(DTROS):
 
             else:
                 # Process each red line mask
-                for red_mask in self.red_masks:
+                red_masks = self.red_masks
+                for red_mask in red_masks:
+                    rospy.logwarn(f"Processing red mask with shape: {red_mask.shape}")
                     # Resize red mask if necessary to match direction mask dimensions
                     # Add validation checks
                     if red_mask is not None and left_mask is not None and red_mask.size > 0 and left_mask.size > 0:
@@ -121,15 +170,18 @@ class IntersectionHandlingNode(DTROS):
 
                     # Calculate overlap with each direction
                     left_overlap = self._calculate_mask_overlap(red_mask, left_mask)
+                    rospy.logwarn(f"Left overlap: {left_overlap}")
                     straight_overlap = self._calculate_mask_overlap(red_mask, straight_mask)
+                    rospy.logwarn(f"Straight overlap: {straight_overlap}")
                     right_overlap = self._calculate_mask_overlap(red_mask, right_mask)
+                    rospy.logwarn(f"Right overlap: {right_overlap}")
 
                     # Update availability based on overlap threshold (50%)
-                    if left_overlap > 50:
+                    if left_overlap > 10:
                         left_available = True
-                    if straight_overlap > 50:
+                    if straight_overlap > 10:
                         straight_available = True
-                    if right_overlap > 50:
+                    if right_overlap > 10:
                         right_available = True
 
         except Exception as e:
@@ -156,7 +208,7 @@ class IntersectionHandlingNode(DTROS):
             intersection_type = "Straight"
             rospy.logwarn("No valid intersection directions detected. Defaulting to Straight.")
 
-        rospy.loginfo(f"Classified intersection type: {intersection_type}")
+        rospy.logwarn(f"Classified intersection type: {intersection_type}")
         self._intersection_type = intersection_type
 
         # Proceed to choose a direction based on intersection type
@@ -180,14 +232,14 @@ class IntersectionHandlingNode(DTROS):
         # Calculate intersection and template area
         intersection = cv2.bitwise_and(detected_binary, template_binary)
         intersection_area = np.sum(intersection)
-        template_area = np.sum(template_binary)
+        detected_binary = np.sum(detected_binary)
 
         # Avoid division by zero
-        if template_area == 0:
+        if detected_binary == 0:
             return 0
 
         # Calculate percentage of template covered by detection
-        overlap_percentage = (intersection_area / template_area) * 100
+        overlap_percentage = (intersection_area / detected_binary) * 100
 
         return overlap_percentage
 
@@ -214,7 +266,7 @@ class IntersectionHandlingNode(DTROS):
 
         if directions:
             self._intersection_direction = random.choice(directions)
-            rospy.loginfo(f"Chosen intersection direction: {self._intersection_direction}")
+            rospy.logwarn(f"Chosen intersection direction: {self._intersection_direction}")
         else:
             self._intersection_direction = IntersectionDirection.STRAIGHT
             rospy.logwarn("No valid intersection direction found, defaulting to STRAIGHT")
@@ -231,11 +283,12 @@ class IntersectionHandlingNode(DTROS):
 
         # Define parameters for each turn type
         straight_time = 1.2  # Time to go straight (seconds)
+        straight_time_right = 0.3
         turn_time = 2.0  # Time to execute turn (seconds)
         v_straight = 0.3  # Linear velocity for straight (m/s)
         v_turn = 0.2  # Linear velocity during turn (m/s)
-        omega_left = 1.0  # Angular velocity for left turn (rad/s)
-        omega_right = -1.0  # Angular velocity for right turn (rad/s)
+        omega_left = 4.0  # Angular velocity for left turn (rad/s)
+        omega_right = -4.0  # Angular velocity for right turn (rad/s)
 
         start_time = time.time()
         rate = rospy.Rate(10)  # 10Hz control loop
@@ -280,7 +333,7 @@ class IntersectionHandlingNode(DTROS):
             rospy.loginfo("Turning right")
 
             # First go straight for a bit
-            while time.time() - start_time < straight_time / 2:
+            while time.time() - start_time < straight_time_right:
                 cmd_msg.v = v_straight
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
@@ -317,6 +370,41 @@ class IntersectionHandlingNode(DTROS):
 
         self._node_active = False
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode is now inactive")
+
+    def visualizeIntersection(self):
+        """
+        Visualize the intersection with red masks overlaid on the image.
+        Red masks are overlaid with 50% transparency.
+        """
+        if not self.red_masks:
+            rospy.logwarn_throttle(1.0, f"{self._vehicle_name}: No red masks to visualize")
+            return
+
+        try:
+            # Create a blank visualization image (all black)
+            # Assuming masks are same size, use the first one for dimensions
+            height, width = self.red_masks[0].shape[:2]
+            vis_img = self.img.copy() if hasattr(self, "img") else np.zeros((height, width, 3), dtype=np.uint8)
+
+            # Overlay each red mask with 50% transparency
+            for mask in self.red_masks:
+                # Convert binary mask to color (red)
+                colored_mask = np.zeros((height, width, 3), dtype=np.uint8)
+                colored_mask[mask > 0] = [0, 0, 255]  # Red in BGR
+
+                # Overlay with 50% transparency
+                vis_img = cv2.addWeighted(vis_img, 1.0, colored_mask, 0.5, 0)
+
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(vis_img, "Intersection", (10, 30), font, 1, (255, 255, 255), 2)
+
+                # Display the visualization
+                cv2.imshow("Intersecion Classification", vis_img)
+                cv2.waitKey(1)
+
+            rospy.loginfo(f"{self._vehicle_name}: Intersection visualization created with {len(self.red_masks)} masks")
+        except Exception as e:
+            rospy.logerr(f"{self._vehicle_name}: Error in visualization: {e}")
 
 
 if __name__ == "__main__":

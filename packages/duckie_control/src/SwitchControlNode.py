@@ -3,6 +3,7 @@
 import os
 from collections import defaultdict
 from enum import Enum
+from typing import List
 
 import rospy
 from duckietown.dtros import DTROS, NodeType
@@ -23,11 +24,12 @@ NODE_INDEX = {
 }
 
 
-def create_bitvector(active_nodes: list[str], length: int = len(NODE_INDEX)) -> list[int]:
+def create_bitvector(active_nodes: List[str], length: int = len(NODE_INDEX)) -> List[int]:
     vec = [0] * length
     for name in active_nodes:
         idx = NODE_INDEX[name]
         vec[idx] = 1
+    print(f"Created bitvector for {active_nodes}: {vec}")
     return vec
 
 
@@ -39,7 +41,7 @@ class ControlMode(Enum):
             "DuckieCheckCenter",
             "PIDControlLane",
             "IntersectionDetection",
-            "ParkingLotDetection",
+            "SearchForParkingLot",
         ]
     )
 
@@ -67,7 +69,7 @@ class ControlMode(Enum):
         [
             "NormalLaneFollowing",
             "PIDControlLane",
-            "CheckForDotted",
+            "StopAtParkingLot",
         ]
     )
 
@@ -75,13 +77,13 @@ class ControlMode(Enum):
         [
             "NormalLaneFollowing",
             "PIDControlLane",
-            "CheckForNoDotted",
+            "StopAtParkingLot",
         ]
     )
 
     ParkingManager = create_bitvector(
         [
-            "ParkingManager",
+            "ParkStopGo",
         ]
     )
 
@@ -107,7 +109,7 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_redstop_detected, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_detected", Bool, self._on_parkinglot_detected, queue_size=1)
 
-        rospy.Subscriber(f"/{self._vehicle_name}/duckie_avoided", Bool, self._back_to_lane_following, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/detect/not_in_region", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/intersection_handled", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_parked", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/vehicle_stopped", Bool, self._go_to_intersection_handling, queue_size=1)
@@ -124,7 +126,6 @@ class AdminNode(DTROS):
         rospy.logwarn(f"[AdminNode] Initialisiert. Aktueller Modus: {self.current_mode.name}")
 
     def _on_duckie_detected(self, msg):
-        rospy.logwarn("Duckie erkannt! Wechsel in 'AvoidDuckies'-Modus")
         if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
             rospy.logwarn("Duckie erkannt! Wechsel in 'AvoidDuckies'-Modus")
             self.current_mode = ControlMode.AvoidDuckies
@@ -161,7 +162,7 @@ class AdminNode(DTROS):
             self.current_mode = ControlMode.ParkingManager
             self._publish_mode()
         else:
-            rospy.logwarn("Zurück zum 'NormalLaneFollowing'-Modus")
+            rospy.logwarn("Zurück zum 'NormalLaneFollowing'-Modus (Parkplatz belegt oder nicht gestoppt)")
             self.current_mode = ControlMode.NormalLaneFollowing
             self._publish_mode()
 

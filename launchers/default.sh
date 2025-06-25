@@ -32,7 +32,7 @@ python3 -c "import torch; print('CUDA Available:', torch.cuda.is_available()); p
 
 
 rosrun default LaneSegmentation.py &
-# rosrun default ObjectDetection.py &
+rosrun default ObjectDetection.py &
 rosrun normal_lane_following NormalLaneFollowing.py &
 rosrun normal_lane_following OppositeLaneFollowing.py &
 rosrun normal_lane_following DuckieCenterCheck.py &

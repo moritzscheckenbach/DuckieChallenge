@@ -6,6 +6,7 @@ import time
 import rospy
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
+from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Bool, Int32MultiArray
 
 
@@ -23,12 +24,12 @@ class StopAtIntersection(DTROS):
         # Mode subscription
         self._mode_topic = f"/{self._vehicle_name}/current_mode"
         self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.activate_node, queue_size=1)
-
         # Publishers
         # Publisher for velocity commands
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         # Publisher for vehicle stopped signal
         self.pub_vehicle_stopped = rospy.Publisher(f"/{self._vehicle_name}/vehicle_stopped", Bool, queue_size=1)
+        self.intersection_image = rospy.Publisher(f"/{self._vehicle_name}/intersection/img", CompressedImage, queue_size=1)
 
         # Timer for checking stop state
         self.timer = rospy.Timer(rospy.Duration(0.1), self.check_stop_state)
@@ -96,6 +97,26 @@ class StopAtIntersection(DTROS):
         twist.omega = 0.0  # Zero angular velocity
         self.pub_cmd_vel.publish(twist)
         rospy.loginfo(f"{self._vehicle_name}: Stop command sent")
+        self.subscribe_to_single_image()
+
+    def subscribe_to_single_image(self):
+        """Subscribe to a single camera image and then unsubscribe"""
+        self.image_received = False
+        self.single_image_sub = rospy.Subscriber(f"/{self._vehicle_name}/camera_node/image/compressed", CompressedImage, self.single_image_callback, queue_size=1)
+        rospy.loginfo(f"{self._vehicle_name}: Waiting for a single camera image...")
+
+    def single_image_callback(self, img_msg):
+        """Process a single camera image and then unsubscribe"""
+        if not self.image_received:
+            # Process the image here
+            rospy.loginfo(f"{self._vehicle_name}: Image received")
+            # Forward the image to the intersection image topic if needed
+            self.intersection_image.publish(img_msg)
+
+            # Unsubscribe after receiving one image
+            self.single_image_sub.unregister()
+            self.image_received = True
+            rospy.loginfo(f"{self._vehicle_name}: Unsubscribed from camera feed")
 
     def on_shutdown(self):
         """Handle shutdown"""

@@ -57,9 +57,14 @@ class ControlLaneNode(DTROS):
         # Ki = 0.07  # Integral gain
         # Kd = 4.50  # Derivative gain
 
-        Kp = 5.00  # Proportional gain
-        Ki = 0.07  # Integral gain
-        Kd = 1.00  # Derivative gain
+        # # Sehr Gute Werte für GUSTAV am 25.06.2025
+        # Kp = 9.80  # Proportional gain
+        # Ki = 0.04  # Integral gain
+        # Kd = 0.90  # Derivative gain
+
+        Kp = 9.80  # Proportional gain
+        Ki = 0.04  # Integral gain
+        Kd = 0.85  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
@@ -106,7 +111,7 @@ class ControlLaneNode(DTROS):
             pid_output = -8.0
         """
         # Adjust velocity based on curve sharpness (slow down in curves)
-        base_speed = 0.25
+        base_speed = 0.38
         curve_factor = abs(pid_output) / 4.0  # Normalized curve sharpness
         v = base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
 

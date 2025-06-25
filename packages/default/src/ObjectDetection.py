@@ -42,7 +42,7 @@ class ShowCameraNode(DTROS):
         # YOLO-Modell laden
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
-        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_obj_dect_20250610.pt")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11n_obj_dect.pt")
 
         if os.path.exists(yolo_model_path):
             self.model = YOLO(yolo_model_path)

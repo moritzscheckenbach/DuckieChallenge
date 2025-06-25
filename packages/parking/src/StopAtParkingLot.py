@@ -5,14 +5,15 @@ import os
 import numpy as np
 import rospy
 from cv_bridge import CvBridge
+from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
 from normal_lane_following.msg import MultiMaskGroups
 from std_msgs.msg import Bool, Float64, Int32MultiArray, String
 
 
-class StopAtParkingLot:
-    def __init__(self):
-        rospy.init_node("dotted_mask_checker")
+class StopAtParkingLot(DTROS):
+    def __init__(self, node_name):
+        super(StopAtParkingLot, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
         self._vehicle_name = os.environ.get("VEHICLE_NAME", "")
         self._node_active = False
@@ -23,6 +24,7 @@ class StopAtParkingLot:
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.mask_callback, queue_size=1)
 
         self.pub_halt = rospy.Publisher(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, queue_size=1)
+        self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
 
         rospy.loginfo("[DottedMaskChecker] Node gestartet")
 
@@ -34,6 +36,9 @@ class StopAtParkingLot:
             self._node_active = False
 
     def mask_callback(self, msg: MultiMaskGroups):
+        if not self._node_active:
+            return
+
         # Konvertiere dotted-Masken
         dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
 

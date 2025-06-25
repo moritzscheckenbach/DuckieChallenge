@@ -41,7 +41,7 @@ class LaneSegmentation(DTROS):
         # Initialize YOLO model for lane segmentation
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
-        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11_lane_seg_20250610.pt")
+        yolo_model_path = os.path.join(package_path, "src", "model", "yolo_v11n_seg.pt")
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if self.device.type == "cuda":
@@ -303,7 +303,7 @@ class LaneSegmentation(DTROS):
                     combined_mask[dotted_area] = [0, 0, 255]
         elif dotted_masks is not None and dotted_masks.shape[:2] == img.shape[:2]:
             dotted_area = (dotted_masks > 0) & (combined_mask == 0).all(axis=2)
-            combined_mask[dotted_area] = [0, 0, 255]  # Dotted Markierung
+            combined_mask[dotted_area] = [255, 0, 0]  # Dotted Markierung
 
         # Original zu 40%, Maske zu 60%
         overlay = cv2.addWeighted(overlay, 0.4, combined_mask, 0.6, 0)

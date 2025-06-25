@@ -254,7 +254,7 @@ class NormalLaneFollowing(DTROS):
 
         # Add labels
         font = cv2.FONT_HERSHEY_SIMPLEX
-        cv2.putText(vis_image, "Segmentation", (10, 30), font, 1, (255, 255, 255), 2)
+        cv2.putText(vis_image, "Right Lane PID", (10, 30), font, 1, (255, 255, 255), 2)
         cv2.putText(vis_image, "Lane Centers", (w + 10, 30), font, 1, (255, 255, 255), 2)
 
         # Display the visualization
