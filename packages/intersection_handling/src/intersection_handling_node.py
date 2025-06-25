@@ -107,9 +107,17 @@ class IntersectionHandlingNode(DTROS):
                 # Process each red line mask
                 for red_mask in self.red_masks:
                     # Resize red mask if necessary to match direction mask dimensions
-                    if red_mask.shape != left_mask.shape:
-                        red_mask = cv2.resize(red_mask, (left_mask.shape[1], left_mask.shape[0]))
-                        rospy.logwarn("Resized red mask to match direction mask dimensions.")
+                    # Add validation checks
+                    if red_mask is not None and left_mask is not None and red_mask.size > 0 and left_mask.size > 0:
+                        if red_mask.shape != left_mask.shape:
+                            try:
+                                red_mask = cv2.resize(red_mask, (left_mask.shape[1], left_mask.shape[0]))
+                                rospy.logwarn("Resized red mask to match direction mask dimensions.")
+                            except Exception as e:
+                                rospy.logerr(f"Resize operation failed: {e}")
+                                rospy.logerr(f"Red mask shape: {red_mask.shape}, Left mask shape: {left_mask.shape}")
+                    else:
+                        rospy.logerr("Cannot resize: One of the masks is None or empty")
 
                     # Calculate overlap with each direction
                     left_overlap = self._calculate_mask_overlap(red_mask, left_mask)
@@ -212,6 +220,7 @@ class IntersectionHandlingNode(DTROS):
             rospy.logwarn("No valid intersection direction found, defaulting to STRAIGHT")
 
         # NOTE: If traffic rules need to be checked, implement that logic here
+
         self.turn()
 
     def turn(self):
