@@ -27,3 +27,23 @@ center_check_duckie:
     y_min: 250
     x_max: 450
     y_max: 480
+
+# RichtCheckDuckie
+right_check_duckie:
+  target_class_id: 1
+  region:
+    x_min: 100
+    y_min: 250
+    x_max: 450
+    y_max: 480
+
+# RichtCheckDuckie
+parking:
+  bot_class_id: 0
+  duckie_class_id: 1
+  target_class_id: 2
+  region:
+    x_min: 100
+    y_min: 250
+    x_max: 450
+    y_max: 480

@@ -17,10 +17,9 @@ NODE_INDEX = {
     "IntersectionDetection": 5,
     "StopAtIntersection": 6,
     "IntersectionHandling": 7,
-    "ParkingLotDetection": 8,
-    "CheckForDotted": 9,
-    "CheckForNoDotted": 10,
-    "ParkingManager": 11,
+    "SearchForParkingLot": 8,
+    "StopAtParkingLot": 9,
+    "ParkStopGo": 10,
 }
 
 
@@ -112,12 +111,15 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/intersection_handled", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_parked", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/vehicle_stopped", Bool, self._go_to_intersection_handling, queue_size=1)
-        rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_found", Bool, self._go_to_stop_at_parking_lot, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/parking/possible", Bool, self._go_to_stop_at_parking_lot, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, self._go_to_parking_manager, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/parking/occupied", Bool, self._set_occupied_status, queue_size=1)
 
         self.current_mode = ControlMode.NormalLaneFollowing
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
         self._publish_mode()
+
+        self.occupied_status = False
 
         rospy.logwarn(f"[AdminNode] Initialisiert. Aktueller Modus: {self.current_mode.name}")
 
@@ -153,9 +155,14 @@ class AdminNode(DTROS):
             self._publish_mode()
 
     def _go_to_parking_manager(self, msg):
-        if msg.data and self.current_mode == ControlMode.StopAtParkingLot:
+        rospy.sleep(2.0)
+        if msg.data and self.current_mode == ControlMode.StopAtParkingLot and self.occupied_status == False:
             rospy.logwarn("Am Parkplatz gestoppt! Wechsel in 'ParkingManager'-Modus")
             self.current_mode = ControlMode.ParkingManager
+            self._publish_mode()
+        else:
+            rospy.logwarn("Zurück zum 'NormalLaneFollowing'-Modus")
+            self.current_mode = ControlMode.NormalLaneFollowing
             self._publish_mode()
 
     def _back_to_lane_following(self, msg):
@@ -163,6 +170,9 @@ class AdminNode(DTROS):
             rospy.logwarn("Zurück zum 'NormalLaneFollowing'-Modus")
             self.current_mode = ControlMode.NormalLaneFollowing
             self._publish_mode()
+
+    def _set_occupied_status(self, msg):
+        self.occupied_status = msg.data
 
     def _publish_mode(self):
         msg = Int32MultiArray()
