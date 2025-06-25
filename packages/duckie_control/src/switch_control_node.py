@@ -8,24 +8,86 @@ import rospy
 from duckietown.dtros import DTROS, NodeType
 from std_msgs.msg import Bool, Int32MultiArray, String
 
+NODE_INDEX = {
+    "NormalLaneFollowing": 0,
+    "DuckieCheckCenter": 1,
+    "OppositeLaneFollowing": 2,
+    "DuckieCheckRight": 3,
+    "PIDControlLane": 4,
+    "IntersectionDetection": 5,
+    "StopAtIntersection": 6,
+    "IntersectionHandling": 7,
+    "ParkingLotDetection": 8,
+    "CheckForDotted": 9,
+    "CheckForNoDotted": 10,
+    "ParkingManager": 11,
+}
+
+
+def create_bitvector(active_nodes: list[str], length: int = len(NODE_INDEX)) -> list[int]:
+    vec = [0] * length
+    for name in active_nodes:
+        idx = NODE_INDEX[name]
+        vec[idx] = 1
+    return vec
+
 
 class ControlMode(Enum):
-    # ALL_NODES = [
-    #     # "LaneSegmentation",
-    #     # "ObjectDetection",
-    #     "NormalLaneFollowing",  # 1
-    #     "DuckieCheckCenter",  # 2
-    #     "OppositeLaneFollowing",  # 3
-    #     "DuckieCheckRight",  # 4
-    #     "PIDControlLane",  # 5
-    #     "IntersectionDetection",  # 6
-    #     "StopAtIntersection",  # 7
-    #     "IntersectionHandling",  # 8
-    #     "ParkingLotDetection",  # 9
-    #     "CheckForDotted",  # 10
-    #     "CheckForNoDotted",  # 11
-    #     "ParkingManager",  # 12
-    # ]
+
+    NormalLaneFollowing = create_bitvector(
+        [
+            "NormalLaneFollowing",
+            "DuckieCheckCenter",
+            "PIDControlLane",
+            "IntersectionDetection",
+            "ParkingLotDetection",
+        ]
+    )
+
+    AvoidDuckies = create_bitvector(
+        [
+            "OppositeLaneFollowing",
+            "DuckieCheckRight",
+            "PIDControlLane",
+        ]
+    )
+
+    StoppingAtIntersection = create_bitvector(
+        [
+            "StopAtIntersection",
+        ]
+    )
+
+    IntersectionHandling = create_bitvector(
+        [
+            "IntersectionHandling",
+        ]
+    )
+
+    SearchForParkingLot = create_bitvector(
+        [
+            "NormalLaneFollowing",
+            "PIDControlLane",
+            "CheckForDotted",
+        ]
+    )
+
+    StopAtParkingLot = create_bitvector(
+        [
+            "NormalLaneFollowing",
+            "PIDControlLane",
+            "CheckForNoDotted",
+        ]
+    )
+
+    ParkingManager = create_bitvector(
+        [
+            "ParkingManager",
+        ]
+    )
+
+
+class ControlMode_old(Enum):
 
     NormalLaneFollowing = [1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0]
     AvoidDuckies = [0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0]
