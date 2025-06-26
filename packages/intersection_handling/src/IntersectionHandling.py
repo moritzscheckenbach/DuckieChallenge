@@ -55,8 +55,7 @@ class IntersectionHandlingNode(DTROS):
         self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
         # self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cblane, queue_size=1)
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.cbmasks, queue_size=1)
-        self.sub_image = rospy.Subscriber(f"/{self._vehicle_name}/intersection/img", CompressedImage, self.cbimage, queue_size=1)
-
+        self.sub_image = rospy.Subscriber(f"/{self._vehicle_name}/camera_node/image/compressed", CompressedImage, self.cbimage, queue_size=1)
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         self.pub_intersection_done = rospy.Publisher(f"/{self._vehicle_name}/intersection_handled", Bool, queue_size=1)
@@ -95,6 +94,7 @@ class IntersectionHandlingNode(DTROS):
 
         try:
             self.red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
+            self.img = self.pre_img if hasattr(self, "pre_img") else None  # Use pre_img if available
             if not self.red_masks:
                 rospy.logwarn_throttle(1.0, f"{self._vehicle_name}: No red masks received")
         except Exception as e:
@@ -104,7 +104,7 @@ class IntersectionHandlingNode(DTROS):
         try:
             # Convert compressed image to OpenCV format
             cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding="bgr8")
-            self.img = self.crop_img(cv_image)  # Crop the image if needed
+            self.pre_img = self.crop_img(cv_image)  # Crop the image if needed
             # Process the image if needed (e.g., visualization)
             rospy.logwarn(f"{self._vehicle_name}: Received image")
         except Exception as e:
