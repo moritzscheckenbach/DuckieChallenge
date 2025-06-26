@@ -31,23 +31,24 @@ python3 -c "import torch; print('CUDA Available:', torch.cuda.is_available()); p
 # dt-exec python3 -m "my_package.my_script"
 
 
-rosrun default LaneSegmentation.py &
-rosrun default ObjectDetection.py &
-rosrun normal_lane_following NormalLaneFollowing.py &
-rosrun normal_lane_following OppositeLaneFollowing.py &
-#rosrun normal_lane_following DuckieCenterCheck.py &
-rosrun normal_lane_following DuckieCheckRight.py &
-rosrun intersection_handling IntersectionHandling.py &
-rosrun intersection_handling IntersectionDetection.py &
-rosrun intersection_handling StopAtIntersection.py &
-rosrun parking ParkStopGo.py &
-rosrun parking SearchForParkingLot.py &
-rosrun parking StopAtParkingLot.py &
-rosrun parking StopVehicle.py &
-# rosrun duckie_control challenge_test_publisher.py &
-rosrun duckie_control PIDControlLane.py &
-rosrun duckie_control SwitchControlNode.py &
+# rosrun default LaneSegmentation.py &
+# rosrun default ObjectDetection.py &
+# rosrun normal_lane_following NormalLaneFollowing.py &
+# rosrun normal_lane_following OppositeLaneFollowing.py &
+# #rosrun normal_lane_following DuckieCenterCheck.py &
+# rosrun normal_lane_following DuckieCheckRight.py &
+# rosrun intersection_handling IntersectionHandling.py &
+# rosrun intersection_handling IntersectionDetection.py &
+# rosrun intersection_handling StopAtIntersection.py &
+# rosrun parking ParkStopGo.py &
+# rosrun parking SearchForParkingLot.py &
+# rosrun parking StopAtParkingLot.py &
+# rosrun parking StopVehicle.py &
+# # rosrun duckie_control challenge_test_publisher.py &
+# rosrun duckie_control PIDControlLane.py &
+# rosrun duckie_control SwitchControlNode.py &
 
+rosrun intersection_handling LEDBlinker.py &
 
 
 
