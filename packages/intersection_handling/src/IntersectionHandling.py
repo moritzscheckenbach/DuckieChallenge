@@ -59,6 +59,7 @@ class IntersectionHandlingNode(DTROS):
         # Publishers
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         self.pub_intersection_done = rospy.Publisher(f"/{self._vehicle_name}/intersection_handled", Bool, queue_size=1)
+        self.pub_blinker_cmd = rospy.Publisher(f"/{self._vehicle_name}/blinker_command", String, queue_size=1)
 
         rospy.loginfo(f"{self._vehicle_name}: IntersectionHandlingNode initialized with state: {self._state}")
 
@@ -244,6 +245,47 @@ class IntersectionHandlingNode(DTROS):
 
         return overlap_percentage
 
+    def activate_blinker(self, direction):
+        """
+        Activate the appropriate blinker based on turn direction
+
+        Args:
+            direction (IntersectionDirection): The direction to turn
+        """
+        try:
+            blinker_msg = String()
+
+            if direction == IntersectionDirection.LEFT:
+                blinker_msg.data = "left"
+                rospy.loginfo(f"{self._vehicle_name}: Activating LEFT blinker")
+            elif direction == IntersectionDirection.RIGHT:
+                blinker_msg.data = "right"
+                rospy.loginfo(f"{self._vehicle_name}: Activating RIGHT blinker")
+            else:
+                # For straight, turn off blinkers
+                blinker_msg.data = "off"
+                rospy.loginfo(f"{self._vehicle_name}: No blinker needed for STRAIGHT")
+
+            self.pub_blinker_cmd.publish(blinker_msg)
+            rospy.sleep(0.1)  # Small delay to ensure message is sent
+
+        except Exception as e:
+            rospy.logerr(f"{self._vehicle_name}: Error activating blinker: {e}")
+
+    def deactivate_blinker(self):
+        """
+        Turn off all blinkers
+        """
+        try:
+            blinker_msg = String()
+            blinker_msg.data = "off"
+            self.pub_blinker_cmd.publish(blinker_msg)
+            rospy.loginfo(f"{self._vehicle_name}: Deactivating all blinkers")
+            rospy.sleep(0.1)  # Small delay to ensure message is sent
+
+        except Exception as e:
+            rospy.logerr(f"{self._vehicle_name}: Error deactivating blinker: {e}")
+
     def chooseIntersectionDirection(self):
         self._state = IntersectionHandlingNodeState.CHOOSING_DIRECTION
 
@@ -271,6 +313,9 @@ class IntersectionHandlingNode(DTROS):
         else:
             self._intersection_direction = IntersectionDirection.STRAIGHT
             rospy.logwarn("No valid intersection direction found, defaulting to STRAIGHT")
+
+        # Activate appropriate blinker based on chosen direction
+        self.activate_blinker(self._intersection_direction)
 
         # NOTE: If traffic rules need to be checked, implement that logic here
 
@@ -360,6 +405,9 @@ class IntersectionHandlingNode(DTROS):
         cmd_msg.v = 0.0
         cmd_msg.omega = 0.0
         self.pub_cmd_vel.publish(cmd_msg)
+
+        # Deactivate blinker before completing intersection handling
+        self.deactivate_blinker()
 
         # Mark intersection handling as completed
         self.publishDone()
