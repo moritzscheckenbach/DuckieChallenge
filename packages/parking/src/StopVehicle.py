@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+import os
+import time
+
+import rospy
+from duckietown.dtros import DTROS, NodeType
+from duckietown_msgs.msg import Twist2DStamped
+from normal_lane_following.msg import MultiMaskGroups
+from sensor_msgs.msg import CompressedImage
+from std_msgs.msg import Bool, Int32MultiArray
+
+
+class StopVehicle(DTROS):
+    def __init__(self, node_name):
+        super(StopVehicle, self).__init__(node_name=node_name, node_type=NodeType.CONTROL)
+
+        self._vehicle_name = os.environ["VEHICLE_NAME"]
+
+        # Node state
+        self._node_active = False
+
+        # Mode subscription
+        self.sub_modus = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.activate_node, queue_size=1)
+
+        # Publishers
+        # Publisher for velocity commands
+        self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
+        # Publisher for vehicle stopped signal
+        self.pub_halt = rospy.Publisher(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, queue_size=1)
+
+        rospy.loginfo(f"{self._vehicle_name}: StoppingAtParkingLot initialized")
+
+    def activate_node(self, msg):
+        """Activate or deactivate based on control mode"""
+        # Check if we're in stopping at intersection mode (index 6)
+        if msg.data[10] == 1:
+
+            rospy.logwarn(f"{self._vehicle_name}: StoppingAtParkingLot activated")
+            self._node_active = True
+            self.stop_vehicle()
+        else:
+            if self._node_active:
+                rospy.loginfo(f"{self._vehicle_name}: StoppingAtParkingLot deactivated")
+                # Reset state if we're deactivated
+            self._node_active = False
+
+    def stop_vehicle(self):
+        """Send command to stop the vehicle"""
+        if not self._node_active:
+            return
+        twist = Twist2DStamped()
+        twist.v = 0.0  # Zero velocity
+        twist.omega = 0.0  # Zero angular velocity
+        self.pub_cmd_vel.publish(twist)
+        rospy.loginfo(f"{self._vehicle_name}: Stop command sent")
+
+        rospy.sleep(2)
+        self.pub_halt.publish(Bool(True))
+
+
+if __name__ == "__main__":
+    node = StopVehicle(node_name="StopVehicle")
+    rospy.spin()

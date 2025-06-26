@@ -106,7 +106,7 @@ class IntersectionHandlingNode(DTROS):
             cv_image = self.bridge.compressed_imgmsg_to_cv2(msg, desired_encoding="bgr8")
             self.pre_img = self.crop_img(cv_image)  # Crop the image if needed
             # Process the image if needed (e.g., visualization)
-            rospy.logwarn(f"{self._vehicle_name}: Received image")
+            # rospy.loginfo(f"{self._vehicle_name}: Received image")
         except Exception as e:
             rospy.logerr(f"{self._vehicle_name}: Error processing image: {e}")
 

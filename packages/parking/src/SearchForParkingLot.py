@@ -18,6 +18,7 @@ class SearchForParkingLot(DTROS):
     def __init__(self, node_name):
         super(SearchForParkingLot, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
         self.X_QUERY = 220
+        self._vehicle_name = os.environ.get("VEHICLE_NAME", "")
 
         self.config = self._load_config()
 
@@ -26,13 +27,13 @@ class SearchForParkingLot(DTROS):
         self.bot_class_id = self.config["parking"]["bot_class_id"]  # Roboter-Klasse
         self.region = self.config["parking"]["region"]  # [x_min, x_max, y_min, y_max]
 
-        self._vehicle_name = os.environ.get("VEHICLE_NAME", "")
         self._node_active = False
 
+        # rospy.logwarn(f"{self._vehicle_name}: ParkingCheckNode initialized")
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.Mask_Callback, queue_size=1)
         self.bridge = CvBridge()
 
-        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/objects", BoundingBoxArray, self.detection_callback, queue_size=1)
+        self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/bounding_boxes", BoundingBoxArray, self.detection_callback, queue_size=1)
         self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
 
         self.pub_parking_possible = rospy.Publisher(f"/{self._vehicle_name}/parking/possible", Bool, queue_size=1)
@@ -61,23 +62,26 @@ class SearchForParkingLot(DTROS):
     def cbControlMode(self, msg: Int32MultiArray):
         if msg.data[8] == 1:
             self._node_active = True
-            rospy.loginfo(f"{self._vehicle_name}: Parking check active")
+            rospy.logwarn(f"{self._vehicle_name}: Parking check active")
         else:
             self._node_active = False
 
     def is_in_region(self, box):
-        return self.region[0] <= box.x_center <= self.region[1] and self.region[2] <= box.y_center <= self.region[3]
+        x_center = (box.x_min + box.x_max) / 2.0
+        y_center = (box.y_min + box.y_max) / 2.0
+
+        return self.region["x_min"] <= x_center <= self.region["x_max"] and self.region["y_min"] <= y_center <= self.region["y_max"]
 
     def iou(self, boxA, boxB):
         # Intersection over Union zur Überlappungsprüfung
-        xA = max(boxA.xmin, boxB.xmin)
-        yA = max(boxA.ymin, boxB.ymin)
-        xB = min(boxA.xmax, boxB.xmax)
-        yB = min(boxA.ymax, boxB.ymax)
+        xA = max(boxA.x_min, boxB.x_min)
+        yA = max(boxA.y_min, boxB.y_min)
+        xB = min(boxA.x_max, boxB.x_max)
+        yB = min(boxA.y_max, boxB.y_max)
 
         interArea = max(0, xB - xA) * max(0, yB - yA)
-        boxAArea = (boxA.xmax - boxA.xmin) * (boxA.ymax - boxA.ymin)
-        boxBArea = (boxB.xmax - boxB.xmin) * (boxB.ymax - boxB.ymin)
+        boxAArea = (boxA.x_max - boxA.x_min) * (boxA.y_max - boxA.y_min)
+        boxBArea = (boxB.x_max - boxB.x_min) * (boxB.y_max - boxB.y_min)
         iou = interArea / float(boxAArea + boxBArea - interArea) if float(boxAArea + boxBArea - interArea) > 0 else 0
         return iou
 
@@ -87,8 +91,8 @@ class SearchForParkingLot(DTROS):
             self.yellow_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.yellow]
             dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
 
-        # **Nur noch feststellen, ob überhaupt dotted-Masken übertragen wurden**
-        self.dotted_detected = len(dotted_masks) > 0
+            # **Nur noch feststellen, ob überhaupt dotted-Masken übertragen wurden**
+            self.dotted_detected = len(dotted_masks) > 0
 
         # hier deine Wunsch-Spalte eintragen
 
@@ -98,43 +102,56 @@ class SearchForParkingLot(DTROS):
 
         # gibt es in *irgendeiner* Yellow-Maske gelb an X_QUERY?
 
-    def detection_callback(self, msg: BoundingBoxArray):
+    def detection_callback(self, msg):
         if not self._node_active:
             return
 
         boxes = msg.boxes
-        AREA_THRESHOLD = 4000
+        AREA_THRESHOLD = 25000
         large_parking_possible = False
         parking_occupied = False
 
         # 1) Suche Parkplatz-BoundingBoxes
         parking_boxes = [b for b in boxes if b.class_id == self.target_class_id]
-
+        rospy.logwarn(f"Found {len(parking_boxes)} parking boxes")
         # 2) Finde den ersten großen Parkplatz
-        large_parking = next((b for b in parking_boxes if (b.xmax - b.xmin) * (b.ymax - b.ymin) > AREA_THRESHOLD), None)
+        large_parking = next((b for b in parking_boxes if (b.x_max - b.x_min) * (b.y_max - b.y_min) > AREA_THRESHOLD), None)
+        rospy.logwarn(f"Found large parking: {large_parking}")
 
         if large_parking:
+            rospy.logwarn(f"PARKPLATZ IST GROOOOOOOOOOSS")
             # 3) Überprüfe Region
             if self.is_in_region(large_parking):
+                rospy.logwarn(f"PARKPLATZ IST IN REGION")
                 # 4) dotted-Masken vorhanden?
                 if hasattr(self, "dotted_detected") and self.dotted_detected:
+                    rospy.logwarn(f"SEHE DOTTE LINE")
                     # 5) x-Koordinate ermitteln
-                    x_center = int((large_parking.xmin + large_parking.xmax) / 2.0)
+                    x_center = int((large_parking.x_min + large_parking.x_max) / 2.0)
 
                     # 6) gibt es gelb an dieser x-Koordinate?
                     has_yellow = any(self.has_yellow_at_x(mask, x_center) for mask in self.yellow_masks)
 
                     if not has_yellow:
+                        rospy.logwarn(f"KEINE GELBE LINIE DAZWISCHEN")
                         large_parking_possible = True
 
                         # 7) Hindernisse auf großem Parkplatz prüfen
                         obstacle_boxes = [b for b in boxes if b.class_id in [self.duckie_class_id, self.bot_class_id]]
                         for obstacle in obstacle_boxes:
-                            if self.iou(large_parking, obstacle) > 0.5:
-                                parking_occupied = True
-                                large_parking_possible = False
-                                break
+                            if not obstacle.class_id == self.target_class_id:  # Ignoriere andere Parkplätze
+                                if self.iou(large_parking, obstacle) > 0.2:
+                                    rospy.logwarn(f"PARKPLATZ IST BELEEEEEEEEEEEEGT")
+                                    parking_occupied = True
+                                    large_parking_possible = False
+                                    break
 
         # 8) Ergebnis publizieren
+        rospy.logwarn(f"Large parking possible: {large_parking_possible}, Parking occupied: {parking_occupied}")
         self.pub_parking_possible.publish(Bool(large_parking_possible))
         self.pub_parking_occupied.publish(Bool(parking_occupied))
+
+
+if __name__ == "__main__":
+    node = SearchForParkingLot(node_name="SearchForParkingLot")
+    rospy.spin()

@@ -43,7 +43,7 @@ parking:
   duckie_class_id: 1
   target_class_id: 2
   region:
-    x_min: 100
-    y_min: 250
-    x_max: 450
+    x_min: 400
+    y_min: 0
+    x_max: 640
     y_max: 480

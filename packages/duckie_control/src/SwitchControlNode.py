@@ -20,7 +20,8 @@ NODE_INDEX = {
     "IntersectionHandling": 7,
     "SearchForParkingLot": 8,
     "StopAtParkingLot": 9,
-    "ParkStopGo": 10,
+    "StopVehicle": 10,
+    "ParkStopGo": 11,
 }
 
 
@@ -81,6 +82,12 @@ class ControlMode(Enum):
         ]
     )
 
+    StoppedAtParkingLot = create_bitvector(
+        [
+            "StopVehicle",
+        ]
+    )
+
     ParkingManager = create_bitvector(
         [
             "ParkStopGo",
@@ -113,9 +120,10 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/intersection_handled", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_parked", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/vehicle_stopped", Bool, self._go_to_intersection_handling, queue_size=1)
-        rospy.Subscriber(f"/{self._vehicle_name}/parking/possible", Bool, self._go_to_stop_at_parking_lot, queue_size=1)
-        rospy.Subscriber(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, self._go_to_parking_manager, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/parking/possible", Bool, self.go_to_stop_at_parking_lot, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, self.go_to_parking_manager, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/parking/occupied", Bool, self._set_occupied_status, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/stopp_command", Bool, self._go_to_parkinglot_stopp, queue_size=1)
 
         self.current_mode = ControlMode.NormalLaneFollowing
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
@@ -149,15 +157,21 @@ class AdminNode(DTROS):
             self.current_mode = ControlMode.SearchForParkingLot
             self._publish_mode()
 
-    def _go_to_stop_at_parking_lot(self, msg):
-        if msg.data and self.current_mode == ControlMode.SearchForParkingLot:
+    def go_to_stop_at_parking_lot(self, msg):
+        # if msg.data and self.current_mode == ControlMode.SearchForParkingLot:
+        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
             rospy.logwarn("Parkplatz gefunden! Wechsel in 'StopAtParkingLot'-Modus")
             self.current_mode = ControlMode.StopAtParkingLot
             self._publish_mode()
 
-    def _go_to_parking_manager(self, msg):
-        rospy.sleep(2.0)
-        if msg.data and self.current_mode == ControlMode.StopAtParkingLot and self.occupied_status == False:
+    def _go_to_parkinglot_stopp(self, msg):
+        if msg.data and self.current_mode == ControlMode.StopAtParkingLot:
+            rospy.logwarn("Parkplatz gestoppt! Wechsel in 'StoppedAtParkingLot'-Modus")
+            self.current_mode = ControlMode.StoppedAtParkingLot
+            self._publish_mode()
+
+    def go_to_parking_manager(self, msg):
+        if msg.data and self.current_mode == ControlMode.StoppedAtParkingLot and self.occupied_status == False:
             rospy.logwarn("Am Parkplatz gestoppt! Wechsel in 'ParkingManager'-Modus")
             self.current_mode = ControlMode.ParkingManager
             self._publish_mode()

@@ -23,8 +23,7 @@ class StopAtParkingLot(DTROS):
 
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.mask_callback, queue_size=1)
 
-        self.pub_halt = rospy.Publisher(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, queue_size=1)
-        self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
+        self.pub_halt = rospy.Publisher(f"/{self._vehicle_name}/stopp_command", Bool, queue_size=1)
 
         rospy.loginfo("[DottedMaskChecker] Node gestartet")
 
@@ -46,20 +45,10 @@ class StopAtParkingLot(DTROS):
         dotted_missing = len(dotted_masks) == 0
 
         if dotted_missing == True:
-            self.send_stop_cmd()
+            # Publiziere Halt-Signal
+            self.pub_halt.publish(Bool(dotted_missing))
 
-        # Publiziere Halt-Signal
-        self.pub_halt.publish(Bool(dotted_missing))
-
-        rospy.loginfo(f"[DottedMaskChecker] Dotted missing: {dotted_missing}")
-
-    def send_stop_cmd(self):
-        twist = Twist2DStamped()
-        twist.v = 0.0
-        twist.omega = 0.0
-        self.pub_cmd_vel.publish(twist)
-
-        self.pub_halt.publish(Bool(True))
+            rospy.loginfo(f"[DottedMaskChecker] Dotted missing: {dotted_missing}")
 
 
 if __name__ == "__main__":
