@@ -23,7 +23,6 @@ class StopAtIntersection(DTROS):
 
         # Mode subscription
         self.sub_modus = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.activate_node, queue_size=1)
-        self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.cbmasks, queue_size=1)
 
         # Publishers
         # Publisher for velocity commands
@@ -39,7 +38,7 @@ class StopAtIntersection(DTROS):
 
         rospy.loginfo(f"{self._vehicle_name}: StoppingAtIntersectionNode initialized")
 
-        rospy.on_shutdown(self.on_shutdown)
+        # rospy.on_shutdown(self.on_shutdown)
 
     def activate_node(self, msg):
         """Activate or deactivate based on control mode"""
@@ -96,14 +95,14 @@ class StopAtIntersection(DTROS):
         self.pub_cmd_vel.publish(twist)
         rospy.loginfo(f"{self._vehicle_name}: Stop command sent")
 
-    def on_shutdown(self):
-        """Handle shutdown"""
-        # Stop the vehicle when shutting down
-        twist = Twist2DStamped()
-        twist.v = 0.0
-        twist.omega = 0.0
-        self.pub_cmd_vel.publish(twist)
-        rospy.loginfo(f"{self._vehicle_name}: Stopped")
+    # def on_shutdown(self):
+    #     """Handle shutdown"""
+    #     # Stop the vehicle when shutting down
+    #     twist = Twist2DStamped()
+    #     twist.v = 0.0
+    #     twist.omega = 0.0
+    #     self.pub_cmd_vel.publish(twist)
+    #     rospy.loginfo(f"{self._vehicle_name}: Stopped")
 
 
 if __name__ == "__main__":

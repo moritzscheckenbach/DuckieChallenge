@@ -84,6 +84,7 @@ class IntersectionHandlingNode(DTROS):
         if msg.data[7] == 1:
             self._node_active = True
             rospy.logwarn(f"{self._vehicle_name}: IntersectionHandlingNode is now active")
+            # rospy.sleep(0.5)
             self.classifyIntersectionType()
         else:
             self._node_active = False
@@ -97,6 +98,8 @@ class IntersectionHandlingNode(DTROS):
             self.img = self.pre_img if hasattr(self, "pre_img") else None  # Use pre_img if available
             if not self.red_masks:
                 rospy.logwarn_throttle(1.0, f"{self._vehicle_name}: No red masks received")
+            else:
+                self.visualizeIntersection()
         except Exception as e:
             rospy.logerr(f"{self._vehicle_name}: Error processing masks: {e}")
 
@@ -124,8 +127,6 @@ class IntersectionHandlingNode(DTROS):
 
     def classifyIntersectionType(self):
         self._state = IntersectionHandlingNodeState.CLASSIFYING_INTERSECTION
-
-        self.visualizeIntersection()
 
         # Initialize intersection directions
         left_available = False
@@ -283,12 +284,12 @@ class IntersectionHandlingNode(DTROS):
 
         # Define parameters for each turn type
         straight_time = 1.2  # Time to go straight (seconds)
-        straight_time_right = 0.3
-        turn_time = 2.0  # Time to execute turn (seconds)
-        v_straight = 0.3  # Linear velocity for straight (m/s)
-        v_turn = 0.2  # Linear velocity during turn (m/s)
-        omega_left = 4.0  # Angular velocity for left turn (rad/s)
-        omega_right = -4.0  # Angular velocity for right turn (rad/s)
+        straight_time_right = 0.8
+        turn_time = 1.5  # Time to execute turn (seconds)
+        v_straight = 0.8  # Linear velocity for straight (m/s)
+        v_turn = 0.15  # Linear velocity during turn (m/s)
+        omega_left = 5  # Angular velocity for left turn (rad/s)
+        omega_right = -5  # Angular velocity for right turn (rad/s)
 
         start_time = time.time()
         rate = rospy.Rate(10)  # 10Hz control loop
@@ -376,6 +377,7 @@ class IntersectionHandlingNode(DTROS):
         Visualize the intersection with red masks overlaid on the image.
         Red masks are overlaid with 50% transparency.
         """
+        rospy.logwarn(f"{self._vehicle_name}: Visualizing intersection with {len(self.red_masks)} red masks")
         if not self.red_masks:
             rospy.logwarn_throttle(1.0, f"{self._vehicle_name}: No red masks to visualize")
             return

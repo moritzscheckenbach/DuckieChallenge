@@ -66,17 +66,30 @@ class ParkingManager(DTROS):
 
         start_time = time.time()
         rate = rospy.Rate(10)  # 10Hz control loop
-        back_time = 0.8
+        back_time = 1.5
 
         rospy.loginfo("Parking")
 
+        # drive backwards
+        backwards_time = time.time()
+        while time.time() - backwards_time < back_time:
+            cmd_msg.v = -0.2
+            cmd_msg.omega = 0.0
+            self.pub_cmd_vel.publish(cmd_msg)
+            rate.sleep()
+
+        cmd_msg.v = 0.0
+        cmd_msg.omega = 0.0
+        self.pub_cmd_vel.publish(cmd_msg)
+        rospy.sleep(0.5)
+
         # turn left
-        omega = -5  # rad/s nach links (negativ)
-        duration = math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        omega = 5  # rad/s nach links (negativ)
+        duration = 1.5  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 
-        cmd_msg.v = 0.0
+        cmd_msg.v = 0.15
         cmd_msg.omega = omega
 
         while time.time() - start_time < duration:
@@ -90,7 +103,7 @@ class ParkingManager(DTROS):
 
         # drive backwards
         backwards_time = time.time()
-        while time.time() - backwards_time < back_time / 2:
+        while time.time() - backwards_time < back_time:
             cmd_msg.v = -0.2
             cmd_msg.omega = 0.0
             self.pub_cmd_vel.publish(cmd_msg)
@@ -102,12 +115,12 @@ class ParkingManager(DTROS):
         rospy.sleep(0.5)
 
         # turn right
-        omega = 5  # rad/s nach links (negativ)
-        duration = math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        omega = -5  # rad/s nach links (negativ)
+        duration = 1.5  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 
-        cmd_msg.v = 0.0
+        cmd_msg.v = -0.15
         cmd_msg.omega = omega
 
         while time.time() - start_time < duration:
@@ -123,12 +136,12 @@ class ParkingManager(DTROS):
         rospy.sleep(5.0)
 
         # turn left
-        omega = -5  # rad/s nach links (negativ)
-        duration = math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        omega = 5  # rad/s nach links (negativ)
+        duration = 1.5  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 
-        cmd_msg.v = 0.0
+        cmd_msg.v = 0.15
         cmd_msg.omega = omega
 
         while time.time() - start_time < duration:
@@ -142,7 +155,7 @@ class ParkingManager(DTROS):
 
         # drive forwards
         backwards_time = time.time()
-        while time.time() - backwards_time < back_time / 2:
+        while time.time() - backwards_time < back_time:
             cmd_msg.v = 0.2
             cmd_msg.omega = 0.0
             self.pub_cmd_vel.publish(cmd_msg)
@@ -154,12 +167,12 @@ class ParkingManager(DTROS):
         rospy.sleep(0.5)
 
         # turn right
-        omega = 5  # rad/s nach links (negativ)
-        duration = math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        omega = -5  # rad/s nach links (negativ)
+        duration = 1.5  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 
-        cmd_msg.v = 0.0
+        cmd_msg.v = -0.15
         cmd_msg.omega = omega
 
         while time.time() - start_time < duration:
