@@ -150,7 +150,7 @@ class NormalLaneFollowing(DTROS):
             white_lane_mask = white_masks[0] if white_masks else None
             yellow_lane_mask = yellow_masks[0] if yellow_masks else None
 
-            default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 100
+            default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 50
 
             center_white = self.default_center_white
             center_yellow = self.default_center_yellow

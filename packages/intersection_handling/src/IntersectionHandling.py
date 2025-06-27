@@ -289,37 +289,23 @@ class IntersectionHandlingNode(DTROS):
     def chooseIntersectionDirection(self):
         self._state = IntersectionHandlingNodeState.CHOOSING_DIRECTION
 
-        directions = []
-
-        # Choose available directions based on intersection type
-        if self._intersection_type == "LeftStraightRight":
-            directions = [IntersectionDirection.LEFT, IntersectionDirection.STRAIGHT, IntersectionDirection.RIGHT]
-        elif self._intersection_type == "LeftStraight":
-            directions = [IntersectionDirection.LEFT, IntersectionDirection.STRAIGHT]
-        elif self._intersection_type == "LeftRight":
-            directions = [IntersectionDirection.LEFT, IntersectionDirection.RIGHT]
-        elif self._intersection_type == "StraightRight":
-            directions = [IntersectionDirection.STRAIGHT, IntersectionDirection.RIGHT]
-        elif self._intersection_type == "Left":
-            directions = [IntersectionDirection.LEFT]
-        elif self._intersection_type == "Straight":
-            directions = [IntersectionDirection.STRAIGHT]
-        elif self._intersection_type == "Right":
-            directions = [IntersectionDirection.RIGHT]
+        # Use the helper method to get directions
+        directions = self._get_directions_from_intersection_type()
 
         if directions:
             self._intersection_direction = random.choice(directions)
             rospy.logwarn(f"Chosen intersection direction: {self._intersection_direction}")
+
+            # Activate appropriate blinker based on chosen direction
+            self.activate_blinker(self._intersection_direction)
+
+            # NOTE: If traffic rules need to be checked, implement that logic here
+
+            self.turn()
         else:
-            self._intersection_direction = IntersectionDirection.STRAIGHT
-            rospy.logwarn("No valid intersection direction found, defaulting to STRAIGHT")
-
-        # Activate appropriate blinker based on chosen direction
-        self.activate_blinker(self._intersection_direction)
-
-        # NOTE: If traffic rules need to be checked, implement that logic here
-
-        self.turn()
+            rospy.logwarn("No valid intersection direction found, retrying classification...")
+            # Start retry loop with timer
+            self.retry_classification_with_timer()
 
     def turn(self):
         self._state = IntersectionHandlingNodeState.EXECUTING_ACTION
@@ -327,49 +313,50 @@ class IntersectionHandlingNode(DTROS):
         # Create message for velocity commands
         cmd_msg = Twist2DStamped()
 
-        # Define parameters for each turn type
-        straight_time = 1.2  # Time to go straight (seconds)
-        straight_time_right = 0.8
-        turn_time = 1.5  # Time to execute turn (seconds)
-        v_straight = 0.8  # Linear velocity for straight (m/s)
-        v_turn = 0.15  # Linear velocity during turn (m/s)
-        omega_left = 5  # Angular velocity for left turn (rad/s)
-        omega_right = -5  # Angular velocity for right turn (rad/s)
-
-        start_time = time.time()
         rate = rospy.Rate(10)  # 10Hz control loop
+
+        first_straight_time = 1.2
+        second_straight_time = 1.6
+        normal_straight_time = 0.8
+        turn_time = 0.6
+        v_straight = 0.35
+        v_turn = 0.2
+        omega = 5
 
         if self._intersection_direction == IntersectionDirection.LEFT:
             rospy.loginfo("Turning left")
-
+            start_time = time.time()
             # First go straight for a bit
-            while time.time() - start_time < straight_time / 2:
+            while time.time() - start_time < first_straight_time:
                 cmd_msg.v = v_straight
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
+
+            cmd_msg.v = 0.0
+            cmd_msg.omega = 0.0
+            self.pub_cmd_vel.publish(cmd_msg)
+            rospy.sleep(0.1)  # Small delay to ensure stop command is processed
 
             # Then execute left turn
             turn_start = time.time()
             while time.time() - turn_start < turn_time:
                 cmd_msg.v = v_turn
-                cmd_msg.omega = omega_left
+                cmd_msg.omega = omega
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 
-            # Finally go straight again
-            straight_start = time.time()
-            while time.time() - straight_start < straight_time / 2:
-                cmd_msg.v = v_straight
-                cmd_msg.omega = 0.0
-                self.pub_cmd_vel.publish(cmd_msg)
-                rate.sleep()
+            cmd_msg.v = 0.0
+            cmd_msg.omega = 0.0
+            self.pub_cmd_vel.publish(cmd_msg)
+            rospy.sleep(0.1)  # Small delay to ensure stop command is processed
 
         elif self._intersection_direction == IntersectionDirection.STRAIGHT:
             rospy.loginfo("Going straight")
+            start_time = time.time()
 
             # Go straight for defined distance/time
-            while time.time() - start_time < straight_time:
+            while time.time() - start_time < 0.50:
                 cmd_msg.v = v_straight
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
@@ -377,34 +364,45 @@ class IntersectionHandlingNode(DTROS):
 
         elif self._intersection_direction == IntersectionDirection.RIGHT:
             rospy.loginfo("Turning right")
+            start_time = time.time()
 
             # First go straight for a bit
-            while time.time() - start_time < straight_time_right:
+            while time.time() - start_time < first_straight_time / 2:
                 cmd_msg.v = v_straight
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
+
+            cmd_msg.v = 0.0
+            cmd_msg.omega = 0.0
+            self.pub_cmd_vel.publish(cmd_msg)
+            rospy.sleep(0.1)  # Small delay to ensure stop command is processed
 
             # Then execute right turn
             turn_start = time.time()
             while time.time() - turn_start < turn_time:
                 cmd_msg.v = v_turn
-                cmd_msg.omega = omega_right
+                cmd_msg.omega = -omega * 2
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 
-            # Finally go straight again
-            straight_start = time.time()
-            while time.time() - straight_start < straight_time / 2:
-                cmd_msg.v = v_straight
-                cmd_msg.omega = 0.0
-                self.pub_cmd_vel.publish(cmd_msg)
-                rate.sleep()
+            cmd_msg.v = 0.0
+            cmd_msg.omega = 0.0
+            self.pub_cmd_vel.publish(cmd_msg)
+            rospy.sleep(0.1)  # Small delay to ensure stop command is processed
 
-        # Stop the robot
-        cmd_msg.v = 0.0
-        cmd_msg.omega = 0.0
-        self.pub_cmd_vel.publish(cmd_msg)
+            # # Finally go straight again
+            # straight_start = time.time()
+            # while time.time() - straight_start < second_straight_time:
+            #     cmd_msg.v = v_straight
+            #     cmd_msg.omega = 0.0
+            #     self.pub_cmd_vel.publish(cmd_msg)
+            #     rate.sleep()
+
+        # # Stop the robot
+        # cmd_msg.v = 0.0
+        # cmd_msg.omega = 0.0
+        # self.pub_cmd_vel.publish(cmd_msg)
 
         # Deactivate blinker before completing intersection handling
         self.deactivate_blinker()
@@ -455,6 +453,82 @@ class IntersectionHandlingNode(DTROS):
             rospy.loginfo(f"{self._vehicle_name}: Intersection visualization created with {len(self.red_masks)} masks")
         except Exception as e:
             rospy.logerr(f"{self._vehicle_name}: Error in visualization: {e}")
+
+    def retry_classification_with_timer(self):
+        """
+        Retry intersection classification with a timer-based approach.
+        This method will continuously retry classification until a valid direction is found.
+        """
+        retry_interval = 0.5  # Retry every 0.5 seconds
+        max_retries = 20  # Maximum number of retries (10 seconds total)
+        retry_count = 0
+
+        def retry_callback(event):
+            nonlocal retry_count
+            retry_count += 1
+
+            rospy.logwarn(f"Retrying intersection classification (attempt {retry_count}/{max_retries})")
+
+            # Re-run the classification
+            self.classifyIntersectionType()
+
+            # Check if we now have a valid intersection type that results in directions
+            directions = self._get_directions_from_intersection_type()
+
+            if directions:
+                # Success! We found valid directions
+                rospy.loginfo(f"Successfully detected intersection after {retry_count} retries")
+                self._intersection_direction = random.choice(directions)
+                rospy.logwarn(f"Chosen intersection direction: {self._intersection_direction}")
+
+                # Activate appropriate blinker based on chosen direction
+                self.activate_blinker(self._intersection_direction)
+
+                # Proceed with the turn
+                self.turn()
+
+                # Stop the timer
+                event.stop()
+
+            elif retry_count >= max_retries:
+                # Max retries reached, fall back to default behavior
+                rospy.logerr(f"Failed to detect valid intersection after {max_retries} retries. Defaulting to STRAIGHT.")
+                self._intersection_direction = IntersectionDirection.STRAIGHT
+
+                # Activate appropriate blinker based on chosen direction
+                self.activate_blinker(self._intersection_direction)
+
+                self.turn()
+
+                # Stop the timer
+                event.stop()
+
+        # Start the retry timer
+        retry_timer = rospy.Timer(rospy.Duration(retry_interval), retry_callback)
+
+    def _get_directions_from_intersection_type(self):
+        """
+        Helper method to get available directions based on intersection type.
+        Returns a list of available IntersectionDirection enums.
+        """
+        directions = []
+
+        if self._intersection_type == "LeftStraightRight":
+            directions = [IntersectionDirection.LEFT, IntersectionDirection.STRAIGHT, IntersectionDirection.RIGHT]
+        elif self._intersection_type == "LeftStraight":
+            directions = [IntersectionDirection.LEFT, IntersectionDirection.STRAIGHT]
+        elif self._intersection_type == "LeftRight":
+            directions = [IntersectionDirection.LEFT, IntersectionDirection.RIGHT]
+        elif self._intersection_type == "StraightRight":
+            directions = [IntersectionDirection.STRAIGHT, IntersectionDirection.RIGHT]
+        elif self._intersection_type == "Left":
+            directions = [IntersectionDirection.LEFT]
+        elif self._intersection_type == "Straight":
+            directions = [IntersectionDirection.STRAIGHT]
+        elif self._intersection_type == "Right":
+            directions = [IntersectionDirection.RIGHT]
+
+        return directions
 
 
 if __name__ == "__main__":

@@ -36,7 +36,7 @@ class LEDBlinkerNode(DTROS):
         Create LED pattern message for turn signals
 
         Args:
-            mode (str): "off", "left", or "right"
+            mode (str): "off", "left", "right", or "straight"
             led_state (bool): True for on, False for off (for blinking)
         """
         msg = LEDPattern()
@@ -61,9 +61,16 @@ class LEDBlinkerNode(DTROS):
                 color.b = 0.0
                 color.a = 1.0
                 color_name = "off"
+            elif mode == "straight":
+                # All LEDs off
+                color.r = 0.0
+                color.g = 0.0
+                color.b = 0.0
+                color.a = 1.0
+                color_name = "off"
             elif mode == "left":
-                # Left turn signal: back_left LED (index 1) blinks yellow
-                if i == 1 and led_state:  # back_left LED
+                # Left turn signal: front LED (index 0) and back_left LED (index 1) blink yellow
+                if (i == 0 or i == 4) and led_state:  # front and back_left LEDs
                     color.r = 1.0
                     color.g = 1.0
                     color.b = 0.0
@@ -76,8 +83,8 @@ class LEDBlinkerNode(DTROS):
                     color.a = 1.0
                     color_name = "off"
             elif mode == "right":
-                # Right turn signal: back_right LED (index 3) blinks yellow
-                if i == 3 and led_state:  # back_right LED
+                # Right turn signal: front LED (index 0) and back_right LED (index 3) blink yellow
+                if (i == 1 or i == 2) and led_state:  # front and back_right LEDs
                     color.r = 1.0
                     color.g = 1.0
                     color.b = 0.0
@@ -116,7 +123,7 @@ class LEDBlinkerNode(DTROS):
         """
         command = msg.data.lower().strip()
 
-        if command in ["off", "left", "right"]:
+        if command in ["off", "left", "right", "straight"]:
             rospy.loginfo(f"{self._vehicle_name}: Received blinker command: {command}")
 
             # Stop current blinking
@@ -144,7 +151,7 @@ class LEDBlinkerNode(DTROS):
         Timer callback for LED blinking
         """
         try:
-            if self.current_mode in ["left", "right"]:
+            if self.current_mode in ["left", "right", "straight"]:
                 # Create LED pattern for current mode and blink state
                 led_msg = self.create_led_pattern(self.current_mode, self.is_on)
                 self.pub_led_pattern.publish(led_msg)

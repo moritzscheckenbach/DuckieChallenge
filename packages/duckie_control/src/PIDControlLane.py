@@ -62,9 +62,14 @@ class ControlLaneNode(DTROS):
         # Ki = 0.04  # Integral gain
         # Kd = 0.90  # Derivative gain
 
-        Kp = 9.80  # Proportional gain
-        Ki = 0.04  # Integral gain
-        Kd = 0.85  # Derivative gain
+        # Sehr Gute Werte für Dorette - Auf ersten Videos zu sehen
+        # Kp = 9.80  # Proportional gain
+        # Ki = 0.04  # Integral gain
+        # Kd = 0.85  # Derivative gain
+
+        Kp = 7.80  # Proportional gain
+        Ki = 0.075  # Integral gain
+        Kd = 1.25  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
@@ -85,7 +90,7 @@ class ControlLaneNode(DTROS):
         self.prev_error = current_error
         pid_output = Kp * current_error + Ki * self.integral + Kd * derivative
 
-        pid_output = max(min(pid_output, 4), -4)
+        pid_output = max(min(pid_output, 7.5), -7.5)
 
         """
         # Calculate integral term with anti-windup
@@ -111,8 +116,8 @@ class ControlLaneNode(DTROS):
             pid_output = -8.0
         """
         # Adjust velocity based on curve sharpness (slow down in curves)
-        base_speed = 0.38
-        curve_factor = abs(pid_output) / 4.0  # Normalized curve sharpness
+        base_speed = 0.35
+        curve_factor = abs(pid_output) / 7.5  # Normalized curve sharpness
         v = base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
 
         twist = Twist2DStamped(v=v, omega=-pid_output)

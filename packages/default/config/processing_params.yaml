@@ -3,7 +3,7 @@ processing:
   use_every_Xth_frame: 5  # Process every nth frame
   use_every_Xth_frame_2: 11
   crop_height_percentage: 0.375  # Crop 37.5% from the top
-  roi_height: 100  # Height for lane center extraction (px from top)
+  roi_height: 145  # Height for lane center extraction (px from top)
   
 # Default values for lane detection fallback
 defaults:
@@ -14,8 +14,8 @@ defaults:
 
 # Red stop detection parameters
 red_stop:
-  window_height: 80  # Height of the window (px)
-  window_width: 640  # Width of the window (px)
+  window_height: 100  # Height of the window (px)
+  window_width: 350  # Width of the window (px)
   window_bottom_offset: 0  # Offset from bottom (px)
   detection_threshold: 35  # Percentage threshold for stop detection
 

@@ -300,7 +300,7 @@ class LaneSegmentation(DTROS):
                 if mask is not None and mask.shape[:2] == img.shape[:2]:
                     # Rot nur hinzufügen, wo noch keine andere Maske existiert
                     dotted_area = (mask > 0) & (combined_mask == 0).all(axis=2)
-                    combined_mask[dotted_area] = [0, 0, 255]
+                    combined_mask[dotted_area] = [255, 0, 0]
         elif dotted_masks is not None and dotted_masks.shape[:2] == img.shape[:2]:
             dotted_area = (dotted_masks > 0) & (combined_mask == 0).all(axis=2)
             combined_mask[dotted_area] = [255, 0, 0]  # Dotted Markierung
