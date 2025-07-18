@@ -7,6 +7,7 @@ from typing import List
 
 import rospy
 from duckietown.dtros import DTROS, NodeType
+from sensor_msgs.msg import Range
 from std_msgs.msg import Bool, Int32MultiArray, String
 
 NODE_INDEX = {
@@ -94,6 +95,12 @@ class ControlMode(Enum):
         ]
     )
 
+    EmergencyStop = create_bitvector(
+        [
+            "StopVehicle",
+        ]
+    )
+
 
 class ControlMode_old(Enum):
 
@@ -112,6 +119,7 @@ class AdminNode(DTROS):
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
+        rospy.Subscriber(f"/{self._vehicle_name}/front_center_tof_driver_node/range", Range, self._on_range_sensor_data, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/detect/in_region", Bool, self._on_duckie_detected, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_redstop_detected, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_detected", Bool, self._on_parkinglot_detected, queue_size=1)
@@ -185,6 +193,19 @@ class AdminNode(DTROS):
             rospy.logwarn("Zurück zum 'NormalLaneFollowing'-Modus")
             self.current_mode = ControlMode.NormalLaneFollowing
             self._publish_mode()
+
+    def _on_range_sensor_data(self, msg):
+        if msg.range < 0.2 and self.current_mode != ControlMode.EmergencyStop:
+            last_mode = self.current_mode
+            rospy.logwarn("Notbremsung ausgelöst! Wechsel in 'EmergencyStop'-Modus")
+            self.current_mode = ControlMode.EmergencyStop
+            self._publish_mode()
+        elif msg.range >= 0.2 and self.current_mode == ControlMode.EmergencyStop:
+            rospy.logwarn("Notbremsung aufgehoben! Zurück zum vorherigen Modus")
+            self.current_mode = last_mode if "last_mode" in locals() else ControlMode.NormalLaneFollowing
+            self._publish_mode()
+        elif msg.range >= 0.2 and self.current_mode != ControlMode.EmergencyStop:
+            pass
 
     def _set_occupied_status(self, msg):
         self.occupied_status = msg.data
