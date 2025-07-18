@@ -62,14 +62,19 @@ class ControlLaneNode(DTROS):
         # Ki = 0.04  # Integral gain
         # Kd = 0.90  # Derivative gain
 
-        # Sehr Gute Werte für Dorette - Auf ersten Videos zu sehen
+        # # Sehr Gute Werte für Dorette - Auf ersten Videos zu sehen
         # Kp = 9.80  # Proportional gain
         # Ki = 0.04  # Integral gain
         # Kd = 0.85  # Derivative gain
 
-        Kp = 7.80  # Proportional gain
+        # Kp = 7.80  # Proportional gain
+        # Ki = 0.075  # Integral gain
+        # Kd = 1.25  # Derivative gain
+
+        # 18.07.2025
+        Kp = 6.20  # Proportional gain
         Ki = 0.075  # Integral gain
-        Kd = 1.25  # Derivative gain
+        Kd = 0.50  # Derivative gain
 
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
