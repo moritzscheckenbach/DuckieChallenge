@@ -203,6 +203,7 @@ class AdminNode(DTROS):
         elif msg.range >= 0.2 and self.current_mode == ControlMode.EmergencyStop:
             rospy.logwarn("Notbremsung aufgehoben! Zurück zum vorherigen Modus")
             self.current_mode = last_mode if "last_mode" in locals() else ControlMode.NormalLaneFollowing
+            rospy.sleep(0.5)
             self._publish_mode()
         elif msg.range >= 0.2 and self.current_mode != ControlMode.EmergencyStop:
             pass
