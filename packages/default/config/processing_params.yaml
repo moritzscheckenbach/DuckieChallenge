@@ -53,3 +53,17 @@ parking:
     y_min: 0
     x_max: 640
     y_max: 480
+
+# TrafficRulesDuckie
+traffic_rules_duckie:
+  target_class_id: 0
+  region_right:
+    x_min: 100
+    y_min: 220
+    x_max: 450
+    y_max: 480
+  region_front:
+    x_min: 100
+    y_min: 0
+    x_max: 450
+    y_max: 220

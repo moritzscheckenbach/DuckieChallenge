@@ -11,6 +11,7 @@ import rospkg
 import rospy
 import yaml
 from cv_bridge import CvBridge
+from default.msg import BoundingBox, BoundingBoxArray
 from duckietown.dtros import DTROS, NodeType
 from duckietown_msgs.msg import Twist2DStamped
 from normal_lane_following.msg import MultiMaskGroups
@@ -48,10 +49,14 @@ class IntersectionHandlingNode(DTROS):
 
         self.config = self._load_config()
         self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
+        self.region_right = self.config["traffic_rules_duckie"]["region_right"]
+        self.region_front = self.config["traffic_rules_duckie"]["region_front"]
+        self.target_class_id = self.config["traffic_rules_duckie"]["target_class_id"]
 
         self.bridge = CvBridge()
 
         # Subscribers
+        self.sub_bb = rospy.Subscriber(f"/{self._vehicle_name}/detect/bounding_boxes", BoundingBoxArray, self.detection_callback, queue_size=1)
         self.sub_control_mode = rospy.Subscriber(f"/{self._vehicle_name}/current_mode", Int32MultiArray, self.cbControlMode, queue_size=1)
         # self.sub_lane = rospy.Subscriber(f"/{self._vehicle_name}/detect/lane", Float64, self.cblane, queue_size=1)
         self.sub_masks = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.cbmasks, queue_size=1)
@@ -299,7 +304,7 @@ class IntersectionHandlingNode(DTROS):
             # Activate appropriate blinker based on chosen direction
             self.activate_blinker(self._intersection_direction)
 
-            # NOTE: If traffic rules need to be checked, implement that logic here
+            self.checkTrafficRules()
 
             self.turn()
         else:
@@ -485,6 +490,7 @@ class IntersectionHandlingNode(DTROS):
                 self.activate_blinker(self._intersection_direction)
 
                 # Proceed with the turn
+                self.checkTrafficRules()
                 self.turn()
 
                 # Stop the timer
@@ -498,6 +504,7 @@ class IntersectionHandlingNode(DTROS):
                 # Activate appropriate blinker based on chosen direction
                 self.activate_blinker(self._intersection_direction)
 
+                self.checkTrafficRules()
                 self.turn()
 
                 # Stop the timer
@@ -529,6 +536,54 @@ class IntersectionHandlingNode(DTROS):
             directions = [IntersectionDirection.RIGHT]
 
         return directions
+
+    def detection_callback(self, msg):
+        # rospy.logwarn(f"Received detection message with {msg.boxes} boxes.")
+
+        if self._node_active == True:
+            in_region_right = False
+            in_region_front = False
+
+            for detection in msg.boxes:
+                if detection.class_id == self.target_class_id:
+                    x_min, y_min = detection.x_min, detection.y_min
+                    x_max, y_max = detection.x_max, detection.y_max
+
+                    if (self.region_right["x_min"] <= x_min <= self.region_right["x_max"] and self.region_right["y_min"] <= y_min <= self.region_right["y_max"]) or (
+                        self.region_right["x_min"] <= x_max <= self.region_right["x_max"] and self.region_right["y_min"] <= y_max <= self.region_right["y_max"]
+                    ):
+                        in_region_right = True
+                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt im Bereich: {self.region}")
+                        break
+
+            for detection in msg.boxes:
+                if detection.class_id == self.target_class_id:
+                    x_min, y_min = detection.x_min, detection.y_min
+                    x_max, y_max = detection.x_max, detection.y_max
+
+                    if (self.region_front["x_min"] <= x_min <= self.region_front["x_max"] and self.region_front["y_min"] <= y_min <= self.region_front["y_max"]) or (
+                        self.region_front["x_min"] <= x_max <= self.region_front["x_max"] and self.region_front["y_min"] <= y_max <= self.region_front["y_max"]
+                    ):
+                        in_region_front = True
+                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt im Bereich: {self.region}")
+                        break
+
+            self.in_region_right = in_region_right
+            self.in_region_front = in_region_front
+
+    def checkTrafficRules(self):
+        if self._intersection_direction == IntersectionDirection.RIGHT:
+            return
+        elif self._intersection_direction == IntersectionDirection.STRAIGHT:
+            while self.in_region_right:
+                rospy.logwarn(f"{self._vehicle_name}: Waiting for object in front region to pass")
+                rospy.sleep(1)
+            return
+        elif self._intersection_direction == IntersectionDirection.LEFT:
+            while self.in_region_right and self.in_region_front:
+                rospy.logwarn(f"{self._vehicle_name}: Waiting for object in right region to pass")
+                rospy.sleep(1)
+            return
 
 
 if __name__ == "__main__":
