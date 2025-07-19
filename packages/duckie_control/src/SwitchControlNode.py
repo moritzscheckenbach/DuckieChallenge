@@ -128,6 +128,7 @@ class AdminNode(DTROS):
         super(AdminNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
+        self.current_mode = ControlMode.NormalLaneFollowing
 
         rospy.Subscriber(f"/{self._vehicle_name}/front_center_tof_driver_node/range", Range, self._on_range_sensor_data, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/detect/in_region", Bool, self._on_duckie_detected, queue_size=1)
@@ -144,7 +145,6 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/stopp_command", Bool, self._go_to_parkinglot_stopp, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/redmask_detected", Bool, self._go_to_proximity_handling, queue_size=1)
 
-        self.current_mode = ControlMode.NormalLaneFollowing
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
         self._publish_mode()
 
@@ -224,10 +224,10 @@ class AdminNode(DTROS):
             rospy.logwarn("Redmask erkannt! Wechsel in 'IntersectionProximity'-Modus")
             self.current_mode = ControlMode.IntersectionProximity
             self._publish_mode()
-        else:
-            rospy.logwarn("Redstop nicht erkannt oder im falschen Modus. Zurück zum 'NormalLaneFollowing'-Modus")
-            self.current_mode = ControlMode.NormalLaneFollowing
-            self._publish_mode()
+        # else:
+        #     rospy.logwarn("Redstop nicht erkannt oder im falschen Modus. Zurück zum 'NormalLaneFollowing'-Modus")
+        #     self.current_mode = ControlMode.NormalLaneFollowing
+        #     self._publish_mode()
 
     def _set_occupied_status(self, msg):
         self.occupied_status = msg.data

@@ -59,6 +59,7 @@ class RedStopDetectionNode(DTROS):
         if msg.data[12] == 1:
             if not self._node_active:
                 rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode activated")
+                rospy.sleep(2.2)
             self._node_active = True
         else:
             self._node_active = False

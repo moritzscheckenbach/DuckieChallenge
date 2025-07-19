@@ -54,13 +54,12 @@ class ControlLaneNode(DTROS):
             # Ki = 0.075  # Integral gain
             # Kd = 1.25  # Derivative gain
 
-            # 18.07.2025
-            self.base_speed = 0.35
-            self.Kp = 6.20  # Proportional gain
-            self.Ki = 0.075  # Integral gain
-            self.Kd = 0.50  # Derivative gain
+            self.base_speed = 0.45
+            self.Kp = 9.80  # Proportional gain
+            self.Ki = 0.04  # Integral gain
+            self.Kd = 0.45  # Derivative gain
         else:
-            self.base_speed = 0.20
+            self.base_speed = 0.35
             self.Kp = 6.20  # Proportional gain
             self.Ki = 0.075  # Integral gain
             self.Kd = 0.50  # Derivative gain

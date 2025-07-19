@@ -144,7 +144,7 @@ class OppositeLaneFollowing(DTROS):
         crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
         img = img[crop_height:, :]
         self.image_height = img.shape[0]
-        rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
+        # rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
 
         return img
 

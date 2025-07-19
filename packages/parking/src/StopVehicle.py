@@ -45,6 +45,11 @@ class StopVehicle(DTROS):
                 # Reset state if we're deactivated
             self._node_active = False
 
+        if msg.data[12] == 1:
+            self.nicht_parken = True
+        else:
+            self.nicht_parken = False
+
     def stop_vehicle(self):
         """Send command to stop the vehicle"""
         if not self._node_active:
@@ -56,7 +61,10 @@ class StopVehicle(DTROS):
         rospy.loginfo(f"{self._vehicle_name}: Stop command sent")
 
         rospy.sleep(2)
-        self.pub_halt.publish(Bool(True))
+
+        if not self.nicht_parken:
+            rospy.loginfo(f"{self._vehicle_name}: Vehicle is not allowed to park, stopping vehicle")
+            self.pub_halt.publish(Bool(True))
 
 
 if __name__ == "__main__":

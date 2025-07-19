@@ -48,6 +48,7 @@ rosrun parking StopVehicle.py &
 rosrun duckie_control PIDControlLane.py &
 rosrun duckie_control SwitchControlNode.py &
 rosrun intersection_handling LEDBlinker.py &
+rosrun intersection_handling RedMaskDetection.py &
 
 
 

@@ -63,7 +63,7 @@ class CheckRedStop(DTROS):
         """Activate or deactivate node based on control mode"""
         if msg.data[5] == 1:
             if not self._node_active:
-                rospy.sleep(2.2)
+                # rospy.sleep(2.2)
                 rospy.logwarn(f"{self._vehicle_name}: RedStopDetectionNode activated")
             self._node_active = True
         else:

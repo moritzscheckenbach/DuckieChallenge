@@ -32,10 +32,10 @@ class NormalLaneFollowing(DTROS):
         """
         self.node_active = False  # Flag to check if the node is active
         self._mode_topic = f"/{self._vehicle_name}/current_mode"
-        self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.ActivateNode, queue_size=1)
 
         # Load configuration parameters
         self.config = self._load_config()
+        self.sub_modus = rospy.Subscriber(self._mode_topic, Int32MultiArray, self.ActivateNode, queue_size=1)
 
         self.Xth_frame = self.config["processing"]["use_every_Xth_frame"]  # Process every Xth frame
         self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
@@ -135,7 +135,7 @@ class NormalLaneFollowing(DTROS):
         crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
         img = img[crop_height:, :]
         self.image_height = img.shape[0]
-        rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
+        # rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
 
         return img
 

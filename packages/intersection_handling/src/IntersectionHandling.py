@@ -52,6 +52,9 @@ class IntersectionHandlingNode(DTROS):
         self.region_right = self.config["traffic_rules_duckie"]["region_right"]
         self.region_front = self.config["traffic_rules_duckie"]["region_front"]
         self.target_class_id = self.config["traffic_rules_duckie"]["target_class_id"]
+        # Initialize traffic rule detection attributes
+        self.in_region_right = False
+        self.in_region_front = False
 
         self.bridge = CvBridge()
 
@@ -125,7 +128,7 @@ class IntersectionHandlingNode(DTROS):
         crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
         img = img[crop_height:, :]
         self.image_height = img.shape[0]
-        rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
+        # rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
 
         return img
 
@@ -309,8 +312,12 @@ class IntersectionHandlingNode(DTROS):
             self.turn()
         else:
             rospy.logwarn("No valid intersection direction found, retrying classification...")
-            # Start retry loop with timer
-            self.retry_classification_with_timer()
+
+            rospy.sleep(5)
+            self.classifyIntersectionType()
+
+            # # Start retry loop with timer
+            # self.retry_classification_with_timer()
 
     def turn(self):
         self._state = IntersectionHandlingNodeState.EXECUTING_ACTION
@@ -553,7 +560,7 @@ class IntersectionHandlingNode(DTROS):
                         self.region_right["x_min"] <= x_max <= self.region_right["x_max"] and self.region_right["y_min"] <= y_max <= self.region_right["y_max"]
                     ):
                         in_region_right = True
-                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt im Bereich: {self.region}")
+                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt rechts im Bereich: {self.region_right}")
                         break
 
             for detection in msg.boxes:
@@ -565,7 +572,7 @@ class IntersectionHandlingNode(DTROS):
                         self.region_front["x_min"] <= x_max <= self.region_front["x_max"] and self.region_front["y_min"] <= y_max <= self.region_front["y_max"]
                     ):
                         in_region_front = True
-                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt im Bereich: {self.region}")
+                        rospy.logwarn(f"Objekt der Klasse {self.target_class_id} erkannt oben im Bereich: {self.region_front}")
                         break
 
             self.in_region_right = in_region_right
