@@ -23,6 +23,7 @@ NODE_INDEX = {
     "StopAtParkingLot": 9,
     "StopVehicle": 10,
     "ParkStopGo": 11,
+    "RedMaskDetection": 12,
 }
 
 
@@ -42,8 +43,17 @@ class ControlMode(Enum):
             "NormalLaneFollowing",
             "DuckieCheckCenter",
             "PIDControlLane",
-            "IntersectionDetection",
+            "RedMaskDetection",
             "SearchForParkingLot",
+        ]
+    )
+
+    IntersectionProximity = create_bitvector(
+        [
+            "NormalLaneFollowing",
+            "PIDControlLane",
+            "IntersectionDetection",
+            "RedMaskDetection",
         ]
     )
 
@@ -132,6 +142,7 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, self.go_to_parking_manager, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/parking/occupied", Bool, self._set_occupied_status, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/stopp_command", Bool, self._go_to_parkinglot_stopp, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/redmask_detected", Bool, self._go_to_proximity_handling, queue_size=1)
 
         self.current_mode = ControlMode.NormalLaneFollowing
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
@@ -148,7 +159,7 @@ class AdminNode(DTROS):
             self._publish_mode()
 
     def _on_redstop_detected(self, msg):
-        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
+        if msg.data and self.current_mode == ControlMode.IntersectionProximity:
             rospy.logwarn("Redstop erkannt! Wechsel in 'StoppingAtIntersection'-Modus")
             self.current_mode = ControlMode.StoppingAtIntersection
             self._publish_mode()
@@ -207,6 +218,16 @@ class AdminNode(DTROS):
             self._publish_mode()
         elif msg.range >= 0.2 and self.current_mode != ControlMode.EmergencyStop:
             pass
+
+    def _go_to_proximity_handling(self, msg):
+        if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
+            rospy.logwarn("Redmask erkannt! Wechsel in 'IntersectionProximity'-Modus")
+            self.current_mode = ControlMode.IntersectionProximity
+            self._publish_mode()
+        else:
+            rospy.logwarn("Redstop nicht erkannt oder im falschen Modus. Zurück zum 'NormalLaneFollowing'-Modus")
+            self.current_mode = ControlMode.NormalLaneFollowing
+            self._publish_mode()
 
     def _set_occupied_status(self, msg):
         self.occupied_status = msg.data

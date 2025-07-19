@@ -40,6 +40,8 @@ class NormalLaneFollowing(DTROS):
         self.Xth_frame = self.config["processing"]["use_every_Xth_frame"]  # Process every Xth frame
         self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
         self.roi_height = self.config["processing"]["roi_height"]  # Height of the ROI for lane center extraction
+        self.roi_height_proximity = self.config["processing"]["roi_height_proximity"]
+        self.used_roi_height = self.roi_height
         self.default_center_white = self.config["defaults"]["center_white"]  # Default value for fallback
         self.default_center_yellow = self.config["defaults"]["center_yellow"]  # Default value for fallback
         self.default_center_dotted = self.config["defaults"]["center_dotted"]
@@ -62,6 +64,8 @@ class NormalLaneFollowing(DTROS):
         self._camera_topic = f"/{self._vehicle_name}/camera_node/image/compressed"
         self.sub_image_original = rospy.Subscriber(self._camera_topic, CompressedImage, self.LoadImage, queue_size=1)
 
+        self.mode = "NormalLaneFollowing"
+
     def ActivateNode(self, msg):
         """
         Callback to activate or deactivate the node based on the current mode.
@@ -72,6 +76,11 @@ class NormalLaneFollowing(DTROS):
             self.node_active = True
         else:
             self.node_active = False
+
+        if msg.data[8] == 1:
+            self.used_roi_height = self.roi_height
+        else:
+            self.used_roi_height = self.roi_height_proximity
 
     def _load_config(self):
         rospack = rospkg.RosPack()
@@ -159,13 +168,13 @@ class NormalLaneFollowing(DTROS):
             ROIW = False
             ROIY = False
 
-            center_white = self.extract_lane_center_from_mask(white_lane_mask, self.roi_height)
+            center_white = self.extract_lane_center_from_mask(white_lane_mask, self.used_roi_height)
             if center_white is None:
                 ROIW = False
             else:
                 ROIW = True
 
-            center_yellow = self.extract_lane_center_from_mask(yellow_lane_mask, self.roi_height)
+            center_yellow = self.extract_lane_center_from_mask(yellow_lane_mask, self.used_roi_height)
             if center_yellow is None:
                 ROIY = False
             else:
@@ -229,26 +238,26 @@ class NormalLaneFollowing(DTROS):
         center_vis = img.copy()
 
         # Horizontale Linie bei ROI-Höhe
-        cv2.line(center_vis, (0, self.roi_height), (w, self.roi_height), (255, 0, 0), 1)  # Blaue Linie
+        cv2.line(center_vis, (0, self.used_roi_height), (w, self.used_roi_height), (255, 0, 0), 1)  # Blaue Linie
 
         # Draw image center
         cv2.line(center_vis, (int(w / 2), 0), (int(w / 2), h), (255, 255, 0), 2)
 
         # Draw white lane center if available
         if center_white is not None:
-            cv2.circle(center_vis, (int(center_white), self.roi_height), 8, (255, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_white), self.used_roi_height), 8, (255, 255, 255), -1)
             cv2.line(center_vis, (int(center_white), 0), (int(center_white), h), (255, 255, 255), 2)
 
         # Draw yellow lane center if available
         if center_yellow is not None:
-            cv2.circle(center_vis, (int(center_yellow), self.roi_height), 8, (0, 255, 255), -1)
+            cv2.circle(center_vis, (int(center_yellow), self.used_roi_height), 8, (0, 255, 255), -1)
             cv2.line(center_vis, (int(center_yellow), 0), (int(center_yellow), h), (0, 255, 255), 2)
 
         # Draw lane center
         if lane_center is not None:
-            cv2.circle(center_vis, (int(lane_center), self.roi_height), 10, (0, 255, 0), -1)
+            cv2.circle(center_vis, (int(lane_center), self.used_roi_height), 10, (0, 255, 0), -1)
             cv2.line(center_vis, (int(lane_center), 0), (int(lane_center), h), (0, 255, 0), 2)
-            cv2.line(center_vis, (int(lane_center), self.roi_height), (int(w / 2), self.roi_height), (0, 0, 255), 2)
+            cv2.line(center_vis, (int(lane_center), self.used_roi_height), (int(w / 2), self.used_roi_height), (0, 0, 255), 2)
 
         vis_image[:, 0:w] = center_vis
 

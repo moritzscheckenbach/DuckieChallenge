@@ -34,6 +34,37 @@ class ControlLaneNode(DTROS):
             self._node_active = False
             self.fnShutDown()
 
+        if msg.data[8] == 1:
+            # PID Parameters
+            # Kp = 4.00  # Proportional gain
+            # Ki = 0.07  # Integral gain
+            # Kd = 4.50  # Derivative gain
+
+            # # Sehr Gute Werte für GUSTAV am 25.06.2025
+            # Kp = 9.80  # Proportional gain
+            # Ki = 0.04  # Integral gain
+            # Kd = 0.90  # Derivative gain
+
+            # # Sehr Gute Werte für Dorette - Auf ersten Videos zu sehen
+            # Kp = 9.80  # Proportional gain
+            # Ki = 0.04  # Integral gain
+            # Kd = 0.85  # Derivative gain
+
+            # Kp = 7.80  # Proportional gain
+            # Ki = 0.075  # Integral gain
+            # Kd = 1.25  # Derivative gain
+
+            # 18.07.2025
+            self.base_speed = 0.35
+            self.Kp = 6.20  # Proportional gain
+            self.Ki = 0.075  # Integral gain
+            self.Kd = 0.50  # Derivative gain
+        else:
+            self.base_speed = 0.20
+            self.Kp = 6.20  # Proportional gain
+            self.Ki = 0.075  # Integral gain
+            self.Kd = 0.50  # Derivative gain
+
     def cbFollowLane(self, desired_center):
 
         print(f"received message. enabled : {self._node_active}")
@@ -52,30 +83,6 @@ class ControlLaneNode(DTROS):
             center: Position of lane center in pixels
         """
 
-        # PID Parameters
-        # Kp = 4.00  # Proportional gain
-        # Ki = 0.07  # Integral gain
-        # Kd = 4.50  # Derivative gain
-
-        # # Sehr Gute Werte für GUSTAV am 25.06.2025
-        # Kp = 9.80  # Proportional gain
-        # Ki = 0.04  # Integral gain
-        # Kd = 0.90  # Derivative gain
-
-        # # Sehr Gute Werte für Dorette - Auf ersten Videos zu sehen
-        # Kp = 9.80  # Proportional gain
-        # Ki = 0.04  # Integral gain
-        # Kd = 0.85  # Derivative gain
-
-        # Kp = 7.80  # Proportional gain
-        # Ki = 0.075  # Integral gain
-        # Kd = 1.25  # Derivative gain
-
-        # 18.07.2025
-        Kp = 6.20  # Proportional gain
-        Ki = 0.075  # Integral gain
-        Kd = 0.50  # Derivative gain
-
         # Initialize PID variables if not already set
         if not hasattr(self, "prev_error"):
             self.prev_error = 0
@@ -93,7 +100,7 @@ class ControlLaneNode(DTROS):
         derivative = current_error - self.prev_error
 
         self.prev_error = current_error
-        pid_output = Kp * current_error + Ki * self.integral + Kd * derivative
+        pid_output = self.Kp * current_error + self.Ki * self.integral + self.Kd * derivative
 
         pid_output = max(min(pid_output, 7.5), -7.5)
 
@@ -120,10 +127,10 @@ class ControlLaneNode(DTROS):
         elif pid_output < -8.0:
             pid_output = -8.0
         """
+
         # Adjust velocity based on curve sharpness (slow down in curves)
-        base_speed = 0.35
         curve_factor = abs(pid_output) / 7.5  # Normalized curve sharpness
-        v = base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
+        v = self.base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
 
         twist = Twist2DStamped(v=v, omega=-pid_output)
         rospy.logwarn(f"moving {v} with omega {-pid_output} at error {current_error}")

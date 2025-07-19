@@ -4,6 +4,7 @@ processing:
   use_every_Xth_frame_2: 11
   crop_height_percentage: 0.375  # Crop 37.5% from the top
   roi_height: 145  # Height for lane center extraction (px from top)
+  roi_height_proximity: 50
   
 # Default values for lane detection fallback
 defaults:
@@ -11,6 +12,11 @@ defaults:
   center_yellow: 40  # Relative position (percentage of image width)
   center_dotted: 300  # Relative position (percentage of image width)
 
+# Proximity to intersection parameters
+intersection_proximity:
+  window_height: 300
+  window_width: 200
+  window_bottom_offset: 0
 
 # Red stop detection parameters
 red_stop:
