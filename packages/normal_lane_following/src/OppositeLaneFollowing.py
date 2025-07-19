@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import time
 from enum import Enum
 
 import cv2
@@ -10,6 +11,7 @@ import rospy
 import yaml
 from cv_bridge import CvBridge
 from duckietown.dtros import DTROS, NodeType
+from duckietown_msgs.msg import Twist2DStamped
 from normal_lane_following.msg import MultiMaskGroups
 from sensor_msgs.msg import CompressedImage, Image
 from std_msgs.msg import Bool, Float64, Int32MultiArray, String
@@ -52,6 +54,7 @@ class OppositeLaneFollowing(DTROS):
         self.red_stop_roi_window_width = self.config["red_stop"]["window_width"]
         self.red_stop_roi_window_bottom_offset = self.config["red_stop"]["window_bottom_offset"]
 
+        self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         self.pub_lane = rospy.Publisher(f"/{self._vehicle_name}/detect/lane", Float64, queue_size=1)
         self.sub = rospy.Subscriber(f"/{self._vehicle_name}/detect/masks", MultiMaskGroups, self.callback, queue_size=1)
 
@@ -66,8 +69,23 @@ class OppositeLaneFollowing(DTROS):
         """
         Callback to activate or deactivate the node based on the current mode.
         """
-        # if msg.data[1] == ControlMode.NORMAL_DRIVE.value:
         if msg.data[2] == 1:
+
+            # hard coded transition to opposite lane following
+            v = 0.2
+            omega = 2.5  # rad/s nach links (negativ)
+            duration = 1  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+            rate = rospy.Rate(10)
+            start_time = time.time()
+
+            cmd_msg = Twist2DStamped()
+            cmd_msg.v = v
+            cmd_msg.omega = omega
+
+            while time.time() - start_time < duration:
+                self.pub_cmd_vel.publish(cmd_msg)
+                rate.sleep()
+
             rospy.logwarn("Opposite Lane Following Node is active.")
             self.node_active = True
         else:
