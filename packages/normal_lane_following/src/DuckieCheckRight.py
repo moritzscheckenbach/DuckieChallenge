@@ -30,7 +30,7 @@ class DetectionCheckerRightNode(DTROS):
         self.pub_in_region = rospy.Publisher(f"/{self._vehicle_name}/detect/not_in_region", Bool, queue_size=1)
 
         rospy.loginfo(f"[DetectionCheckerNode] Läuft. Überwacht Klasse {self.target_class_id} im Bereich {self.region}")
-        self.timer_init = 4.5  # seconds
+        self.timer_init = 5  # seconds
         self.timer_value = self.timer_init
         # Create timer that decrements timer_value every second
         self.timer = rospy.Timer(rospy.Duration(0.1), self.timer_callback)

@@ -215,14 +215,18 @@ class IntersectionHandlingNode(DTROS):
             intersection_type = "Right"
         else:
             # Default if no direction is determined
-            intersection_type = "Straight"
-            rospy.logwarn("No valid intersection directions detected. Defaulting to Straight.")
+            # intersection_type = "Straight"
+            rospy.logwarn("No valid intersection directions detected.")
+            rospy.logwarn("Retrying classification in 2 seconds...")
+            rospy.sleep(2)
+            self.classifyIntersectionType()  # Retry classification
 
-        rospy.logwarn(f"Classified intersection type: {intersection_type}")
-        self._intersection_type = intersection_type
+        if intersection_type is not None:
+            rospy.logwarn(f"Classified intersection type: {intersection_type}")
+            self._intersection_type = intersection_type
 
-        # Proceed to choose a direction based on intersection type
-        self.chooseIntersectionDirection()
+            # Proceed to choose a direction based on intersection type
+            self.chooseIntersectionDirection()
 
     def _calculate_mask_overlap(self, detected_mask, template_mask):
         """
@@ -311,13 +315,14 @@ class IntersectionHandlingNode(DTROS):
 
             self.turn()
         else:
-            rospy.logwarn("No valid intersection direction found, retrying classification...")
+            rospy.logwarn("No valid intersection direction found, please check code logic.")
+        #     rospy.logwarn("No valid intersection direction found, retrying classification...")
 
-            rospy.sleep(5)
-            self.classifyIntersectionType()
+        #     rospy.sleep(5)
+        #     self.classifyIntersectionType()
 
-            # # Start retry loop with timer
-            # self.retry_classification_with_timer()
+        # # Start retry loop with timer
+        # self.retry_classification_with_timer()
 
     def turn(self):
         self._state = IntersectionHandlingNodeState.EXECUTING_ACTION
@@ -327,20 +332,22 @@ class IntersectionHandlingNode(DTROS):
 
         rate = rospy.Rate(10)  # 10Hz control loop
 
-        first_straight_time = 1.2
-        second_straight_time = 1.6
-        normal_straight_time = 0.8
-        turn_time = 0.6
-        v_straight = 0.35
-        v_turn = 0.2
-        omega = 5
+        # first_straight_time = 1.6
+        # second_straight_time = 1.6
+        # normal_straight_time = 0.8
+        # turn_time = 0.8
+        # v_straight = 0.5
+        # v_turn_right = 0.5
+        # v_turn_left = 0.6
+        # omega_right = 15
+        # omega_left = 13
 
         if self._intersection_direction == IntersectionDirection.LEFT:
             rospy.loginfo("Turning left")
             start_time = time.time()
             # First go straight for a bit
-            while time.time() - start_time < first_straight_time:
-                cmd_msg.v = v_straight
+            while time.time() - start_time < 1.6:
+                cmd_msg.v = 0.5
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -352,9 +359,9 @@ class IntersectionHandlingNode(DTROS):
 
             # Then execute left turn
             turn_start = time.time()
-            while time.time() - turn_start < turn_time:
-                cmd_msg.v = v_turn
-                cmd_msg.omega = omega
+            while time.time() - turn_start < 0.8:
+                cmd_msg.v = 0.0
+                cmd_msg.omega = 18
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 
@@ -368,8 +375,8 @@ class IntersectionHandlingNode(DTROS):
             start_time = time.time()
 
             # Go straight for defined distance/time
-            while time.time() - start_time < 0.50:
-                cmd_msg.v = v_straight
+            while time.time() - start_time < 1.0:
+                cmd_msg.v = 0.5
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -379,8 +386,8 @@ class IntersectionHandlingNode(DTROS):
             start_time = time.time()
 
             # First go straight for a bit
-            while time.time() - start_time < first_straight_time / 2:
-                cmd_msg.v = v_straight
+            while time.time() - start_time < 0.5:
+                cmd_msg.v = 0.5
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -392,9 +399,9 @@ class IntersectionHandlingNode(DTROS):
 
             # Then execute right turn
             turn_start = time.time()
-            while time.time() - turn_start < turn_time:
-                cmd_msg.v = v_turn
-                cmd_msg.omega = -omega * 2
+            while time.time() - turn_start < 0.8:
+                cmd_msg.v = 0.5
+                cmd_msg.omega = -54
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 

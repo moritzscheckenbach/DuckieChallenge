@@ -55,14 +55,14 @@ class ControlLaneNode(DTROS):
             # Kd = 1.25  # Derivative gain
 
             self.base_speed = 0.45
-            self.Kp = 9.80  # Proportional gain
-            self.Ki = 0.04  # Integral gain
-            self.Kd = 0.45  # Derivative gain
+            self.Kp = 9.92  # Proportional gain
+            self.Ki = 0.15  # Integral gain
+            self.Kd = 0.6  # Derivative gain
         else:
             self.base_speed = 0.35
-            self.Kp = 6.20  # Proportional gain
-            self.Ki = 0.075  # Integral gain
-            self.Kd = 0.50  # Derivative gain
+            self.Kp = 9.92  # Proportional gain
+            self.Ki = 0.15  # Integral gain
+            self.Kd = 0.60  # Derivative gain
 
     def cbFollowLane(self, desired_center):
 
@@ -129,7 +129,7 @@ class ControlLaneNode(DTROS):
 
         # Adjust velocity based on curve sharpness (slow down in curves)
         curve_factor = abs(pid_output) / 7.5  # Normalized curve sharpness
-        v = self.base_speed * (1.0 - 0.1 * curve_factor)  # Reduce speed in curves
+        v = self.base_speed * (1.0 - 0.4 * curve_factor)  # Reduce speed in curves
 
         twist = Twist2DStamped(v=v, omega=-pid_output)
         rospy.logwarn(f"moving {v} with omega {-pid_output} at error {current_error}")

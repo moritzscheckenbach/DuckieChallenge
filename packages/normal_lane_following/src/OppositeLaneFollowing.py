@@ -72,8 +72,8 @@ class OppositeLaneFollowing(DTROS):
         if msg.data[2] == 1:
 
             # hard coded transition to opposite lane following
-            v = 0.2
-            omega = 2.5  # rad/s nach links (negativ)
+            v = 0.35
+            omega = 5  # rad/s nach links (negativ)
             duration = 1  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
             rate = rospy.Rate(10)
             start_time = time.time()

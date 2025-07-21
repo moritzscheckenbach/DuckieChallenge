@@ -35,7 +35,7 @@ rosrun default LaneSegmentation.py &
 rosrun default ObjectDetection.py &
 rosrun normal_lane_following NormalLaneFollowing.py &
 rosrun normal_lane_following OppositeLaneFollowing.py &
-#rosrun normal_lane_following DuckieCenterCheck.py &
+rosrun normal_lane_following DuckieCenterCheck.py &
 rosrun normal_lane_following DuckieCheckRight.py &
 rosrun intersection_handling IntersectionHandling.py &
 rosrun intersection_handling IntersectionDetection.py &

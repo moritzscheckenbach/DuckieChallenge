@@ -127,22 +127,32 @@ class LEDBlinkerNode(DTROS):
             rospy.loginfo(f"{self._vehicle_name}: Received blinker command: {command}")
 
             # Stop current blinking
-            if self.blink_timer is not None:
-                self.blink_timer.shutdown()
-                self.blink_timer = None
-
-            self.current_mode = command
-
             if command == "off":
+                # Wait 2 seconds before turning off LEDs (let current blinking finish)
+                rospy.sleep(2)
+
+                # Stop current blinking
+                if self.blink_timer is not None:
+                    self.blink_timer.shutdown()
+                    self.blink_timer = None
+
                 # Turn off all LEDs
                 led_msg = self.create_led_pattern("off", False)
                 self.pub_led_pattern.publish(led_msg)
                 rospy.loginfo(f"{self._vehicle_name}: All LEDs turned off")
             else:
+                # Stop current blinking immediately for new commands
+                if self.blink_timer is not None:
+                    self.blink_timer.shutdown()
+                    self.blink_timer = None
+
                 # Start blinking for left or right
                 self.is_on = True
                 self.blink_timer = rospy.Timer(rospy.Duration(1.0 / self.blink_frequency), self.blink_callback)
                 rospy.loginfo(f"{self._vehicle_name}: Started {command} turn signal blinking")
+
+            self.current_mode = command
+
         else:
             rospy.logwarn(f"{self._vehicle_name}: Invalid blinker command: {command}. Use 'off', 'left', or 'right'")
 

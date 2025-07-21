@@ -122,7 +122,7 @@ class NormalLaneFollowing(DTROS):
 
             rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
 
-            self.FindLane(white_masks, yellow_masks)
+            self.FindLane(white_masks, yellow_masks, dotted_masks)
 
         # Beispiel: Zeige erste weiße Maske (falls vorhanden)
         # if white_masks:
@@ -152,11 +152,17 @@ class NormalLaneFollowing(DTROS):
             return np.mean(row_indices)
         return None
 
-    def FindLane(self, white_masks, yellow_masks):
+    def FindLane(self, white_masks, yellow_masks, dotted_masks):
+
+        combined_white_masks = []
+        if white_masks:
+            combined_white_masks.extend(white_masks)
+        if dotted_masks:
+            combined_white_masks.extend(dotted_masks)
 
         try:
 
-            white_lane_mask = white_masks[0] if white_masks else None
+            white_lane_mask = combined_white_masks[0] if combined_white_masks else None
             yellow_lane_mask = yellow_masks[0] if yellow_masks else None
 
             default_lane_center_from_outer_line = (self.default_center_white - self.default_center_yellow) / 2 - 50

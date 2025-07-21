@@ -11,9 +11,9 @@ from sensor_msgs.msg import CompressedImage
 from std_msgs.msg import Bool, Int32MultiArray
 
 
-class StopVehicle(DTROS):
+class EmergencyStopVehicle(DTROS):
     def __init__(self, node_name):
-        super(StopVehicle, self).__init__(node_name=node_name, node_type=NodeType.CONTROL)
+        super(EmergencyStopVehicle, self).__init__(node_name=node_name, node_type=NodeType.CONTROL)
 
         self._vehicle_name = os.environ["VEHICLE_NAME"]
 
@@ -28,9 +28,8 @@ class StopVehicle(DTROS):
         # Publisher for velocity commands
         self.pub_cmd_vel = rospy.Publisher(f"/{self._vehicle_name}/car_cmd_switch_node/cmd", Twist2DStamped, queue_size=1)
         # Publisher for vehicle stopped signal
-        self.pub_halt = rospy.Publisher(f"/{self._vehicle_name}/stopped_at_parkinglot", Bool, queue_size=1)
 
-        rospy.loginfo(f"{self._vehicle_name}: StoppingAtParkingLot initialized")
+        rospy.loginfo(f"{self._vehicle_name}: EmergencyStopVehicle initialized")
 
     def emstopf(self, msg):
         self.emstop = msg.data
@@ -38,21 +37,16 @@ class StopVehicle(DTROS):
     def activate_node(self, msg):
         """Activate or deactivate based on control mode"""
         # Check if we're in stopping at intersection mode (index 6)
-        if msg.data[10] == 1:
+        if msg.data[13] == 1:
 
-            rospy.logwarn(f"{self._vehicle_name}: StoppingAtParkingLot activated")
+            rospy.logwarn(f"{self._vehicle_name}: EmergencyStopVehicle activated")
             self._node_active = True
             self.stop_vehicle()
         else:
             if self._node_active:
-                rospy.loginfo(f"{self._vehicle_name}: StoppingAtParkingLot deactivated")
+                rospy.loginfo(f"{self._vehicle_name}: EmergencyStopVehicle deactivated")
                 # Reset state if we're deactivated
             self._node_active = False
-
-        if self.emstop == True:
-            self.nicht_parken = True
-        else:
-            self.nicht_parken = False
 
     def stop_vehicle(self):
         """Send command to stop the vehicle"""
@@ -72,5 +66,5 @@ class StopVehicle(DTROS):
 
 
 if __name__ == "__main__":
-    node = StopVehicle(node_name="StopVehicle")
+    node = EmergencyStopVehicle(node_name="EmergencyStopVehicle")
     rospy.spin()

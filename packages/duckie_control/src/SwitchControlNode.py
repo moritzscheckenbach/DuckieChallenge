@@ -24,6 +24,7 @@ NODE_INDEX = {
     "StopVehicle": 10,
     "ParkStopGo": 11,
     "RedMaskDetection": 12,
+    "EmergencyStopVehicle": 13,
 }
 
 
@@ -107,7 +108,7 @@ class ControlMode(Enum):
 
     EmergencyStop = create_bitvector(
         [
-            "StopVehicle",
+            "EmergencyStopVehicle",
         ]
     )
 
@@ -147,6 +148,7 @@ class AdminNode(DTROS):
 
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
         self._publish_mode()
+        self.emstop = rospy.Publisher(f"/{self._vehicle_name}/emstop", Bool, queue_size=1)
 
         self.occupied_status = False
 
@@ -206,17 +208,19 @@ class AdminNode(DTROS):
             self._publish_mode()
 
     def _on_range_sensor_data(self, msg):
-        if msg.range < 0.2 and self.current_mode != ControlMode.EmergencyStop:
+        if msg.range < 0.15 and self.current_mode != ControlMode.EmergencyStop:
             last_mode = self.current_mode
             rospy.logwarn("Notbremsung ausgelöst! Wechsel in 'EmergencyStop'-Modus")
             self.current_mode = ControlMode.EmergencyStop
             self._publish_mode()
-        elif msg.range >= 0.2 and self.current_mode == ControlMode.EmergencyStop:
+            self.emstop.publish(Bool(True))
+        elif msg.range >= 0.15 and self.current_mode == ControlMode.EmergencyStop:
             rospy.logwarn("Notbremsung aufgehoben! Zurück zum vorherigen Modus")
             self.current_mode = last_mode if "last_mode" in locals() else ControlMode.NormalLaneFollowing
             rospy.sleep(0.5)
             self._publish_mode()
-        elif msg.range >= 0.2 and self.current_mode != ControlMode.EmergencyStop:
+            self.emstop.publish(Bool(False))
+        elif msg.range >= 0.15 and self.current_mode != ControlMode.EmergencyStop:
             pass
 
     def _go_to_proximity_handling(self, msg):
