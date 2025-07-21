@@ -78,7 +78,7 @@ class CheckRedStop(DTROS):
 
         if not red_masks:
             self.pub_red_stop.publish(Bool(data=False))
-            rospy.loginfo(f"{self._vehicle_name}: No red masks received")
+            # rospy.loginfo(f"{self._vehicle_name}: No red masks received")
             return
 
         image_height = red_masks[0].shape[0]
@@ -104,7 +104,7 @@ class CheckRedStop(DTROS):
             overlap = self._calculate_mask_overlap(red_mask, roi_mask)
 
             if overlap > detection_threshold:
-                rospy.loginfo(f"{self._vehicle_name}: Red stop detected with {overlap:.2f}% overlap")
+                # rospy.loginfo(f"{self._vehicle_name}: Red stop detected with {overlap:.2f}% overlap")
                 self.pub_red_stop.publish(Bool(data=True))
                 return
 

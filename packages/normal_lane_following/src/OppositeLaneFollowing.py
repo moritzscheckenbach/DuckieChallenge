@@ -152,7 +152,7 @@ class OppositeLaneFollowing(DTROS):
 
     def extract_lane_center_from_mask(self, mask, height_roi):
         if mask is None or mask.size == 0:
-            rospy.logwarn("Empty mask provided for lane center extraction.")
+            # rospy.logwarn("Empty mask provided for lane center extraction.")
             return None
 
         # Get points at the specified height

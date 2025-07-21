@@ -73,7 +73,7 @@ class RedStopDetectionNode(DTROS):
 
         if not red_masks:
             self.pub_red_mask.publish(Bool(data=False))
-            rospy.loginfo(f"{self._vehicle_name}: No red masks received")
+            # rospy.loginfo(f"{self._vehicle_name}: No red masks received")
             return
 
         image_height = red_masks[0].shape[0]

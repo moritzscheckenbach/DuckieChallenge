@@ -181,7 +181,7 @@ class LaneSegmentation(DTROS):
             if results is not None and hasattr(results[0], "masks") and results[0].masks is not None:
                 # Get all detected classes
                 detected_classes = results[0].boxes.cls.cpu().numpy().astype(int)
-                rospy.loginfo(f"Detected classes: {detected_classes}")
+                # rospy.loginfo(f"Detected classes: {detected_classes}")
 
                 if 2 in detected_classes:
                     # Extract white lane class

@@ -359,9 +359,9 @@ class IntersectionHandlingNode(DTROS):
 
             # Then execute left turn
             turn_start = time.time()
-            while time.time() - turn_start < 0.8:
-                cmd_msg.v = 0.0
-                cmd_msg.omega = 18
+            while time.time() - turn_start < 1.2:
+                cmd_msg.v = 0.5
+                cmd_msg.omega = 54
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 
@@ -464,6 +464,8 @@ class IntersectionHandlingNode(DTROS):
 
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 cv2.putText(vis_img, "Intersection", (10, 30), font, 1, (255, 255, 255), 2)
+                cv2.putText(vis_img, f"Type: {self._intersection_type}", (10, 60), font, 1, (255, 255, 255), 2)
+                cv2.putText(vis_img, f"Direction: {self._intersection_direction}", (10, 90), font, 1, (255, 255, 255), 2)
 
                 # Display the visualization
                 cv2.imshow("Intersecion Classification", vis_img)
