@@ -120,7 +120,7 @@ class NormalLaneFollowing(DTROS):
             red_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.red]
             dotted_masks = [self.bridge.imgmsg_to_cv2(m, desired_encoding="mono8") for m in msg.dotted]
 
-            rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
+            # rospy.loginfo(f"Erhalten: {len(white_masks)} weiße, {len(yellow_masks)} gelbe, {len(red_masks)} rote Masken, {len(dotted_masks)} dotted Masken")
 
             self.FindLane(white_masks, yellow_masks, dotted_masks)
 

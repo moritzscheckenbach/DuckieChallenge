@@ -131,7 +131,7 @@ class ShowCameraNode(DTROS):
                 for box in bbox_array_msg.boxes:
                     if box.class_id == 2:
                         Flaeche = (box.x_max - box.x_min) * (box.y_max - box.y_min)
-                        rospy.logwarn(f"Parkplatz Area: {Flaeche:.2f} pixels")
+                        # rospy.logwarn(f"Parkplatz Area: {Flaeche:.2f} pixels")
             # Fensteranzeige
             window_name = f"{self._vehicle_name} Camera + YOLO"
             cv2.imshow(window_name, cv_image)
@@ -142,7 +142,7 @@ class ShowCameraNode(DTROS):
 
     def on_shutdown(self):
         cv2.destroyAllWindows()
-        rospy.loginfo(f"[{self.node_name}] Geschlossene Fenster.")
+        # rospy.loginfo(f"[{self.node_name}] Geschlossene Fenster.")
 
 
 if __name__ == "__main__":

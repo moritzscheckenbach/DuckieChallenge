@@ -60,13 +60,13 @@ class ControlLaneNode(DTROS):
             self.Kd = 0.65  # Derivative gain
         else:
             self.base_speed = 0.45
-            self.Kp = 9.92  # Proportional gain
+            self.Kp = 12.00  # Proportional gain
             self.Ki = 0.15  # Integral gain
             self.Kd = 0.60  # Derivative gain
 
     def cbFollowLane(self, desired_center):
 
-        print(f"received message. enabled : {self._node_active}")
+        # rospy.logwarn(f"received message. enabled : {self._node_active}")
 
         if not self._node_active:
             return
@@ -132,7 +132,7 @@ class ControlLaneNode(DTROS):
         v = self.base_speed * (1.0 - 0.4 * curve_factor)  # Reduce speed in curves
 
         twist = Twist2DStamped(v=v, omega=-pid_output)
-        rospy.logwarn(f"moving {v} with omega {-pid_output} at error {current_error}")
+        # rospy.logwarn(f"moving {v} with omega {-pid_output} at error {current_error}")
         self.pub_cmd_vel.publish(twist)
 
     def fnShutDown(self):

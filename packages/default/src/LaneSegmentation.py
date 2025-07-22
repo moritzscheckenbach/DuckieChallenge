@@ -107,7 +107,7 @@ class LaneSegmentation(DTROS):
 
         # Make sure mask is properly shaped and not empty
         if mask.size == 0 or len(mask.shape) < 2:
-            rospy.logwarn(f"Invalid mask shape: {mask.shape}")
+            # rospy.logwarn(f"Invalid mask shape: {mask.shape}")
             return None
 
         # Ensure mask is a proper numpy array with correct dimensionality
@@ -127,11 +127,11 @@ class LaneSegmentation(DTROS):
                     resized_mask = cv2.resize(mask_uint8, (original_size[1], original_size[0]), interpolation=cv2.INTER_NEAREST)
                     return resized_mask
                 else:
-                    rospy.logwarn(f"Invalid mask dimensions for resizing: {mask.shape}")
+                    # rospy.logwarn(f"Invalid mask dimensions for resizing: {mask.shape}")
                     return None
             return mask
         except Exception as e:
-            rospy.logwarn(f"Error processing mask: {e}")
+            # rospy.logwarn(f"Error processing mask: {e}")
             return None
 
     def publish_masks(self, white_masks, yellow_masks, red_masks, dotted_masks):
