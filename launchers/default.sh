@@ -46,10 +46,11 @@ rosrun parking StopAtParkingLot.py &
 rosrun parking StopVehicle.py &
 # rosrun duckie_control challenge_test_publisher.py &
 rosrun duckie_control PIDControlLane.py &
-rosrun duckie_control SwitchControlNode.py &
 rosrun intersection_handling LEDBlinker.py &
 rosrun intersection_handling RedMaskDetection.py &
-
+rosrun normal_lane_following LeaveLane.py &
+rosrun normal_lane_following ReturnToLane.py &
+rosrun duckie_control SwitchControlNode.py &
 
 
 

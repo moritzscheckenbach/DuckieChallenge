@@ -245,10 +245,10 @@ class AdminNode(DTROS):
             rospy.logwarn("Redmask erkannt! Wechsel in 'IntersectionProximity'-Modus")
             self.current_mode = ControlMode.IntersectionProximity
             self._publish_mode()
-        # else:
-        #     rospy.logwarn("Redstop nicht erkannt oder im falschen Modus. Zurück zum 'NormalLaneFollowing'-Modus")
-        #     self.current_mode = ControlMode.NormalLaneFollowing
-        #     self._publish_mode()
+        elif not msg.data and self.current_mode == ControlMode.IntersectionProximity:
+            rospy.logwarn("Redmask nicht mehr erkannt! Zurück zum 'NormalLaneFollowing'-Modus")
+            self.current_mode = ControlMode.NormalLaneFollowing
+            self._publish_mode()
 
     def _go_to_avoid_duckies(self, msg):
         if msg.data and (self.current_mode == ControlMode.ChangeLaneLeft or self.current_mode == ControlMode.ChangeLaneRight):

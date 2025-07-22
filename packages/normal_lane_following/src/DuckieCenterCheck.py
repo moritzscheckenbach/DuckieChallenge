@@ -20,6 +20,7 @@ class DetectionCheckerNode(DTROS):
         self.config = self._load_config()
         cc = self.config["center_check_duckie"]
         self.target_class_id = cc["target_class_id"]
+        self.park_class_id = 2
         self.region = cc["region"]
         self.min_overlap_ratio = 0.4  # cc.get("min_overlap_ratio", 0.6)
 
@@ -84,9 +85,43 @@ class DetectionCheckerNode(DTROS):
 
         in_region = False
 
-        for det in msg.boxes:
-            if det.class_id != self.target_class_id:
-                continue
+        # Sammle alle Enten-Detektionen und finde die größte (nächeste)
+        duckie_boxes = [det for det in msg.boxes if det.class_id == self.target_class_id]
+
+        if not duckie_boxes:
+            self.pub_in_region.publish(Bool(data=False))
+            return
+
+        # Finde die größte Ente (größte Bounding Box Fläche = nächeste)
+        largest_duckie = max(duckie_boxes, key=lambda det: (det.x_max - det.x_min) * (det.y_max - det.y_min))
+
+        # Sammle alle Parkplatz-Bounding-Boxen
+        park_boxes = [det for det in msg.boxes if det.class_id == self.park_class_id]
+
+        # Prüfe nur die größte/nächeste Ente
+        det = largest_duckie
+
+        # Prüfe ob die Ente zu 80% oder mehr mit einem Parkplatz überlappt
+        duckie_ignored = False
+        duckie_area = (det.x_max - det.x_min) * (det.y_max - det.y_min)
+
+        for park_box in park_boxes:
+            # Berechne Überlappung zwischen Enten- und Parkplatz-Box
+            overlap_x_min = max(det.x_min, park_box.x_min)
+            overlap_x_max = min(det.x_max, park_box.x_max)
+            overlap_y_min = max(det.y_min, park_box.y_min)
+            overlap_y_max = min(det.y_max, park_box.y_max)
+
+            if overlap_x_min < overlap_x_max and overlap_y_min < overlap_y_max:
+                overlap_area = (overlap_x_max - overlap_x_min) * (overlap_y_max - overlap_y_min)
+                overlap_ratio = overlap_area / duckie_area
+
+                if overlap_ratio >= 0.8:
+                    rospy.logwarn(f"Größte Duckie ignoriert: {overlap_ratio:.2f} Überlappung mit Parkplatz")
+                    duckie_ignored = True
+                    break
+
+        if not duckie_ignored:
 
             # vertikaler Bereich der Bounding Box ±10 %
             box_height = det.y_max - det.y_min
@@ -94,41 +129,51 @@ class DetectionCheckerNode(DTROS):
             y_low = max(0, int(det.y_min - margin))
             y_high = int(det.y_max + margin)
 
-            # Linien-Positionen auf diesem Band bestimmen
-            x_yellow = self._line_positions_in_band(self.yellow_masks, y_low, y_high, find_min=True)
-            x_right_y = self._line_positions_in_band(self.white_masks, y_low, y_high, find_min=False)
-            x_right_d = self._line_positions_in_band(self.dotted_masks, y_low, y_high, find_min=False)
-            # wähle Max von weiß und dotted (falls beide vorhanden)
-            x_right = None
-            if x_right_y is not None and x_right_d is not None:
-                x_right = max(x_right_y, x_right_d)
-            elif x_right_y is not None:
-                x_right = x_right_y
-            elif x_right_d is not None:
-                x_right = x_right_d
+            # Prüfe ob Ente auf meiner Fahrbahn ist (gelbe Linie LINKS von der Ente)
+            x_yellow_left = None
+            x_white_right = None
 
-            # Fallback auf statische ROI, falls keine Linie
-            if x_yellow is None or x_right is None:
-                x_min_reg = self.region["x_min"]
-                x_max_reg = self.region["x_max"]
-            else:
-                x_min_reg = x_yellow
-                x_max_reg = x_right
+            # Suche gelbe Linie LINKS von der Ente
+            for m in self.yellow_masks:
+                ys, xs = np.where(m > 0)
+                mask_idx = (ys >= y_low) & (ys <= y_high) & (xs < det.x_min)  # links von BBox
+                xs_band = xs[mask_idx]
+                if xs_band.size > 0:
+                    x_yellow_left = max(xs_band)  # nächste zur BBox
+                    break
 
-            # Y-Mittelpunkt-Check (optional)
-            y_center = 0.5 * (det.y_min + det.y_max)
-            if not (self.region["y_min"] <= y_center <= self.region["y_max"]):
-                continue
+            # Suche weiße/gestrichelte Linie RECHTS von der Ente
+            # Erst gestrichelte Masken prüfen (haben Priorität)
+            for m in self.dotted_masks:
+                ys, xs = np.where(m > 0)
+                mask_idx = (ys >= y_low) & (ys <= y_high) & (xs > det.x_max)  # rechts von BBox
+                xs_band = xs[mask_idx]
+                if xs_band.size > 0:
+                    x_white_right = min(xs_band)  # nächste zur BBox
+                    break
 
-            # X-Überlappung
-            box_w = det.x_max - det.x_min
-            overlap = min(det.x_max, x_max_reg) - max(det.x_min, x_min_reg)
-            overlap_ratio = max(0.0, overlap / box_w)
+            # Falls keine gestrichelte Linie, dann weiße prüfen
+            if x_white_right is None:
+                for m in self.white_masks:
+                    ys, xs = np.where(m > 0)
+                    mask_idx = (ys >= y_low) & (ys <= y_high) & (xs > det.x_max)  # rechts von BBox
+                    xs_band = xs[mask_idx]
+                    if xs_band.size > 0:
+                        x_white_right = min(xs_band)  # nächste zur BBox
+                        break
 
-            if overlap_ratio >= self.min_overlap_ratio:
+            # Ente ist auf MEINER Fahrbahn wenn: gelbe Linie LINKS und weiße/gestrichelte RECHTS
+            if x_yellow_left is not None and x_white_right is not None:
                 in_region = True
-                rospy.logwarn(f"Duckie in region: overlap {overlap_ratio:.2f} ≥ {self.min_overlap_ratio}")
-                break
+                rospy.logwarn(f"Ente auf meiner Fahrbahn erkannt: gelb links bei x={x_yellow_left}, weiß/gestrichelt rechts bei x={x_white_right}")
+            else:
+                # Debug: Warum nicht erkannt?
+                if x_yellow_left is None and x_white_right is not None:
+                    rospy.loginfo("Ente auf Gegenfahrbahn: keine gelbe Linie links gefunden")
+                elif x_yellow_left is not None and x_white_right is None:
+                    rospy.loginfo("Ente zwischen Spuren: keine weiße/gestrichelte Linie rechts gefunden")
+                else:
+                    rospy.loginfo("Ente Position unbekannt: keine passenden Linien gefunden")
 
         self.pub_in_region.publish(Bool(data=in_region))
 
