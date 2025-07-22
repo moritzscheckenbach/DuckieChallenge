@@ -25,6 +25,8 @@ NODE_INDEX = {
     "ParkStopGo": 11,
     "RedMaskDetection": 12,
     "EmergencyStopVehicle": 13,
+    "LeaveLane": 14,
+    "ReturnToLane": 15,
 }
 
 
@@ -58,11 +60,23 @@ class ControlMode(Enum):
         ]
     )
 
+    ChangeLaneLeft = create_bitvector(
+        [
+            "LeaveLane",
+        ]
+    )
+
     AvoidDuckies = create_bitvector(
         [
             "OppositeLaneFollowing",
             "DuckieCheckRight",
             "PIDControlLane",
+        ]
+    )
+
+    ChangeLaneRight = create_bitvector(
+        [
+            "ReturnToLane",
         ]
     )
 
@@ -136,7 +150,7 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/redstop_detected", Bool, self._on_redstop_detected, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/parkinglot_detected", Bool, self._on_parkinglot_detected, queue_size=1)
 
-        rospy.Subscriber(f"/{self._vehicle_name}/detect/not_in_region", Bool, self._back_to_lane_following, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/detect/not_in_region", Bool, self._go_to_change_lane_right, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/intersection_handled", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/duckiebot_parked", Bool, self._back_to_lane_following, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/vehicle_stopped", Bool, self._go_to_intersection_handling, queue_size=1)
@@ -145,6 +159,9 @@ class AdminNode(DTROS):
         rospy.Subscriber(f"/{self._vehicle_name}/parking/occupied", Bool, self._set_occupied_status, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/stopp_command", Bool, self._go_to_parkinglot_stopp, queue_size=1)
         rospy.Subscriber(f"/{self._vehicle_name}/redmask_detected", Bool, self._go_to_proximity_handling, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/Change/LaneLeft", Bool, self._go_to_avoid_duckies, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/Change/LaneRight", Bool, self._back_to_lane_following, queue_size=1)
+        rospy.Subscriber(f"/{self._vehicle_name}/detected/afterall_in_region", Bool, self._go_to_avoid_duckies, queue_size=1)
 
         self.status_pub = rospy.Publisher(f"/{self._vehicle_name}/current_mode", Int32MultiArray, queue_size=1, latch=True)
         self._publish_mode()
@@ -156,8 +173,8 @@ class AdminNode(DTROS):
 
     def _on_duckie_detected(self, msg):
         if msg.data and self.current_mode == ControlMode.NormalLaneFollowing:
-            rospy.logwarn("Duckie erkannt! Wechsel in 'AvoidDuckies'-Modus")
-            self.current_mode = ControlMode.AvoidDuckies
+            rospy.logwarn("Duckie erkannt! Wechsel in 'ChangeLaneLeft'-Modus")
+            self.current_mode = ControlMode.ChangeLaneLeft
             self._publish_mode()
 
     def _on_redstop_detected(self, msg):
@@ -232,6 +249,18 @@ class AdminNode(DTROS):
         #     rospy.logwarn("Redstop nicht erkannt oder im falschen Modus. Zurück zum 'NormalLaneFollowing'-Modus")
         #     self.current_mode = ControlMode.NormalLaneFollowing
         #     self._publish_mode()
+
+    def _go_to_avoid_duckies(self, msg):
+        if msg.data and (self.current_mode == ControlMode.ChangeLaneLeft or self.current_mode == ControlMode.ChangeLaneRight):
+            rospy.logwarn("Wechsel in 'AvoidDuckies'-Modus (ChangeLaneLeft)")
+            self.current_mode = ControlMode.AvoidDuckies
+            self._publish_mode()
+
+    def _go_to_change_lane_right(self, msg):
+        if msg.data and self.current_mode == ControlMode.AvoidDuckies:
+            rospy.logwarn("Wechsel in 'ChangeLaneRight'-Modus")
+            self.current_mode = ControlMode.ChangeLaneRight
+            self._publish_mode()
 
     def _set_occupied_status(self, msg):
         self.occupied_status = msg.data
