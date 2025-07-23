@@ -28,9 +28,6 @@ class LEDBlinkerNode(DTROS):
         # Timer for blinking
         self.blink_timer = None
 
-        # Timer for delayed stop
-        self.delayed_stop_timer = None
-
         rospy.loginfo(f"{self._vehicle_name}: LED Blinker Node initialized")
         rospy.loginfo(f"Subscribe to: /{self._vehicle_name}/blinker_command with 'off', 'left', or 'right'")
 
@@ -162,22 +159,16 @@ class LEDBlinkerNode(DTROS):
 
             # Stop current blinking
             if command == "off":
-                # If currently blinking, let it continue for 2 more seconds
-                if self.current_mode in ["left", "right"] and self.blink_timer is not None:
-                    rospy.loginfo(f"{self._vehicle_name}: Blinker will stop in 2 seconds")
-                    # Cancel any existing delayed stop timer
-                    if self.delayed_stop_timer is not None:
-                        self.delayed_stop_timer.shutdown()
-                    # Schedule stop after 2 seconds
-                    self.delayed_stop_timer = rospy.Timer(rospy.Duration(2.0), self.delayed_stop_callback, oneshot=True)
-                else:
-                    # Not currently blinking, set to default immediately
-                    if self.blink_timer is not None:
-                        self.blink_timer.shutdown()
-                        self.blink_timer = None
-                    led_msg = self.create_led_pattern("off", True)
-                    self.pub_led_pattern.publish(led_msg)
-                    rospy.loginfo(f"{self._vehicle_name}: LEDs set to default colors")
+                rospy.sleep(2)
+                # Stop current blinking immediately
+                if self.blink_timer is not None:
+                    self.blink_timer.shutdown()
+                    self.blink_timer = None
+
+                # Set LEDs to default colors (not off)
+                led_msg = self.create_led_pattern("off", True)
+                self.pub_led_pattern.publish(led_msg)
+                rospy.loginfo(f"{self._vehicle_name}: LEDs set to default colors")
             elif command == "straight":
                 # Stop current blinking immediately
                 if self.blink_timer is not None:
@@ -227,28 +218,6 @@ class LEDBlinkerNode(DTROS):
 
         except Exception as e:
             rospy.logerr(f"{self._vehicle_name}: Error in blink callback: {e}")
-
-    def delayed_stop_callback(self, event):
-        """
-        Callback to stop blinking after delay
-        """
-        try:
-            # Stop current blinking
-            if self.blink_timer is not None:
-                self.blink_timer.shutdown()
-                self.blink_timer = None
-
-            # Set LEDs to default colors
-            led_msg = self.create_led_pattern("off", True)
-            self.pub_led_pattern.publish(led_msg)
-            rospy.loginfo(f"{self._vehicle_name}: LEDs set to default colors after delay")
-
-            # Clean up delayed stop timer
-            if self.delayed_stop_timer is not None:
-                self.delayed_stop_timer = None
-
-        except Exception as e:
-            rospy.logerr(f"{self._vehicle_name}: Error in delayed stop callback: {e}")
 
     def start_blinking(self):
         """
