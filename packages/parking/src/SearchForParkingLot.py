@@ -112,7 +112,7 @@ class SearchForParkingLot(DTROS):
             return
 
         boxes = msg.boxes
-        AREA_THRESHOLD = 30000
+        AREA_THRESHOLD = 25000
         large_parking_possible = False
 
         # 1) Suche Parkplatz-BoundingBoxes

@@ -187,11 +187,11 @@ class IntersectionHandlingNode(DTROS):
                     rospy.logwarn(f"Right overlap: {right_overlap}")
 
                     # Update availability based on overlap threshold (50%)
-                    if left_overlap > 10:
+                    if left_overlap > 5:
                         left_available = True
-                    if straight_overlap > 10:
+                    if straight_overlap > 5:
                         straight_available = True
-                    if right_overlap > 10:
+                    if right_overlap > 5:
                         right_available = True
 
         except Exception as e:
@@ -310,6 +310,7 @@ class IntersectionHandlingNode(DTROS):
 
             # Activate appropriate blinker based on chosen direction
             self.activate_blinker(self._intersection_direction)
+            rospy.sleep(0.5)  # Small delay to ensure blinker is activated
 
             self.checkTrafficRules()
 
