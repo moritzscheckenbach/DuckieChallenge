@@ -67,6 +67,8 @@ class ShowCameraNode(DTROS):
         else:
             self.Xth_frame = 1  # Fallback
 
+        self.crop_height_percentage = self.config["processing"]["crop_height_percentage"]  # Percentage of the image height to crop from the top
+
     def _load_config(self):
         rospack = rospkg.RosPack()
         package_path = rospack.get_path("default")
@@ -85,6 +87,16 @@ class ShowCameraNode(DTROS):
             rospy.logerr(f"Error loading config file: {e}.")
             return None
 
+    def crop_img(self, img):
+        img = img.copy()
+        h, w = img.shape[:2]
+        crop_height = int(h * self.crop_height_percentage)  # Crop X% from the top
+        img = img[crop_height:, :]
+        self.image_height = img.shape[0]
+        # rospy.loginfo(f"image size: height:{img.shape[0]}, width:{img.shape[1]}")
+
+        return img
+
     def cb_display_image(self, image_msg):
         if self.counter % self.Xth_frame != 0:
             self.counter += 1
@@ -96,6 +108,7 @@ class ShowCameraNode(DTROS):
             # ROS CompressedImage zu OpenCV-Bild
             np_arr = np.frombuffer(image_msg.data, np.uint8)
             cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            cv_image = self.crop_img(cv_image)
 
             bbox_array_msg = BoundingBoxArray()
             bbox_array_msg.header = image_msg.header

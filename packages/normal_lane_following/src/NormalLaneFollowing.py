@@ -155,10 +155,11 @@ class NormalLaneFollowing(DTROS):
     def FindLane(self, white_masks, yellow_masks, dotted_masks):
 
         combined_white_masks = []
-        if white_masks:
-            combined_white_masks.extend(white_masks)
         if dotted_masks:
             combined_white_masks.extend(dotted_masks)
+        else:
+            if white_masks:
+                combined_white_masks.extend(white_masks)
 
         try:
 

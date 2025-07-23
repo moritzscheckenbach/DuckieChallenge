@@ -112,7 +112,7 @@ class SearchForParkingLot(DTROS):
             return
 
         boxes = msg.boxes
-        AREA_THRESHOLD = 33000
+        AREA_THRESHOLD = 30000
         large_parking_possible = False
 
         # 1) Suche Parkplatz-BoundingBoxes
@@ -152,9 +152,10 @@ class SearchForParkingLot(DTROS):
         # 8) Ergebnis publizieren
         rospy.logwarn(f"Large parking possible: {large_parking_possible}, Parking occupied: {self.parking_occupied}")
 
-        self.pub_parking_possible.publish(Bool(large_parking_possible))
-
-        self.pub_parking_occupied.publish(Bool(self.parking_occupied))
+        if self._node_active == True:
+            rospy.logwarn(f"publishing parking possible and occupied or not")
+            self.pub_parking_possible.publish(Bool(large_parking_possible))
+            self.pub_parking_occupied.publish(Bool(self.parking_occupied))
 
 
 if __name__ == "__main__":

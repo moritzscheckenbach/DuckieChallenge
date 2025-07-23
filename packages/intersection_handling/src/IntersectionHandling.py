@@ -346,8 +346,8 @@ class IntersectionHandlingNode(DTROS):
             rospy.loginfo("Turning left")
             start_time = time.time()
             # First go straight for a bit
-            while time.time() - start_time < 1.6:
-                cmd_msg.v = 0.5
+            while time.time() - start_time < 1.1:
+                cmd_msg.v = 0.48
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -359,8 +359,8 @@ class IntersectionHandlingNode(DTROS):
 
             # Then execute left turn
             turn_start = time.time()
-            while time.time() - turn_start < 1.2:
-                cmd_msg.v = 0.5
+            while time.time() - turn_start < 1.1:
+                cmd_msg.v = 0.6
                 cmd_msg.omega = 54
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -375,8 +375,8 @@ class IntersectionHandlingNode(DTROS):
             start_time = time.time()
 
             # Go straight for defined distance/time
-            while time.time() - start_time < 1.0:
-                cmd_msg.v = 0.5
+            while time.time() - start_time < 1.1:
+                cmd_msg.v = 0.6
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -386,8 +386,8 @@ class IntersectionHandlingNode(DTROS):
             start_time = time.time()
 
             # First go straight for a bit
-            while time.time() - start_time < 0.5:
-                cmd_msg.v = 0.5
+            while time.time() - start_time < 0.35:
+                cmd_msg.v = 0.38
                 cmd_msg.omega = 0.0
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
@@ -399,9 +399,9 @@ class IntersectionHandlingNode(DTROS):
 
             # Then execute right turn
             turn_start = time.time()
-            while time.time() - turn_start < 0.8:
+            while time.time() - turn_start < 1:
                 cmd_msg.v = 0.5
-                cmd_msg.omega = -54
+                cmd_msg.omega = -60
                 self.pub_cmd_vel.publish(cmd_msg)
                 rate.sleep()
 

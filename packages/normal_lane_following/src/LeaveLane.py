@@ -38,9 +38,9 @@ class LeaveLane(DTROS):
     def leavingLane(self):
         # hard coded transition to opposite lane following
         rospy.logwarn(f"{self._vehicle_name}: Leaving Lane - Going to opposite lane")
-        v = 0.2
+        v = 0.4
         omega = 35  # rad/s nach links (negativ)
-        duration = 1  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        duration = 0.35  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 

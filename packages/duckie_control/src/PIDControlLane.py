@@ -34,7 +34,7 @@ class ControlLaneNode(DTROS):
             self._node_active = False
             self.fnShutDown()
 
-        if msg.data[8] == 1:
+        if (msg.data[8] == 1) or (msg.data[2] == 1) or (msg.data[9] == 1):
             # PID Parameters
             # Kp = 4.00  # Proportional gain
             # Ki = 0.07  # Integral gain
@@ -59,9 +59,9 @@ class ControlLaneNode(DTROS):
             self.Ki = 0.18  # Integral gain
             self.Kd = 0.65  # Derivative gain
         else:
-            self.base_speed = 0.45
-            self.Kp = 12.00  # Proportional gain
-            self.Ki = 0.15  # Integral gain
+            self.base_speed = 0.35
+            self.Kp = 15.00  # Proportional gain
+            self.Ki = 0.55  # Integral gain
             self.Kd = 0.60  # Derivative gain
 
     def cbFollowLane(self, desired_center):

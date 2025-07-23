@@ -30,9 +30,9 @@ center_check_duckie:
   target_class_id: 1
   region:
     x_min: 100
-    y_min: 220
+    y_min: 50
     x_max: 450
-    y_max: 480
+    y_max: 300
 
 # RichtCheckDuckie
 right_check_duckie:

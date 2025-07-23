@@ -87,9 +87,9 @@ class ReturnToLane(DTROS):
 
     def drive_right(self):
         # hard coded transition to opposite lane following
-        v = 0.1
-        omega = -7  # rad/s nach links (negativ)
-        duration = 0.5  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
+        v = 0.4
+        omega = -35  # rad/s nach links (negativ)
+        duration = 0.6  # math.pi / (2 * abs(omega))  # Zeit für 90° Drehung
         rate = rospy.Rate(10)
         start_time = time.time()
 
